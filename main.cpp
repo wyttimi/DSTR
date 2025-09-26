@@ -55,7 +55,13 @@ int main() {
     string line;
     int id = 1;
     while (getline(jobFile, line)) {
-        if (line.empty()) continue;
+        // Robust validation
+        if (line.empty() || line.find_first_not_of(" \t") == string::npos) continue;
+        if (line.size() < 5) {
+            cerr << "Warning: Skipping malformed job line: \"" << line << "\"" << endl;
+            continue;
+        }
+
         Job jb(id++, line, "");   // whole line is the job text
         jobsArray.insert(jb);
         jobsList.insert(jb);
@@ -69,7 +75,12 @@ int main() {
     }
     int rid = 1;
     while (getline(resFile, line)) {
-        if (line.empty()) continue;
+        if (line.empty() || line.find_first_not_of(" \t") == string::npos) continue;
+        if (line.size() < 5) {
+            cerr << "Warning: Skipping malformed resume line: \"" << line << "\"" << endl;
+            continue;
+        }
+
         Resume rs(rid++, line);
         resumesArray.insert(rs);
         resumesList.insert(rs);
@@ -110,7 +121,7 @@ int main() {
 
             // --- Sort by score (Bubble Sort, highest first) ---
             clock_t startSort = clock();
-            arrCandidates.bubbleSortByScore();   // ✅ use the new method in ArrayContainer.hpp
+            arrCandidates.bubbleSortByScore();
             clock_t endSort = clock();
             arrSortTime = double(endSort - startSort) / CLOCKS_PER_SEC;
 
@@ -131,7 +142,6 @@ int main() {
             cout << "[Array] Search Time: " << arrSearchTime << "s" << endl;
         }
     }
-
 
     // ---------------- LINKEDLIST VERSION ----------------
     int totalMatchesList = 0;

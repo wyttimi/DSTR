@@ -8,14 +8,9 @@
 #include "LinkedListContainer.hpp"
 #include "Utils.hpp"
 #include "JobMatcher.hpp"
+#include "CandidateMatch.hpp"
 
 using namespace std;
-
-// Helper struct for candidate matching
-struct CandidateMatch {
-    Resume resume;
-    int score;
-};
 
 // --- Tokenizer: split by any non-alphanumeric character ---
 ArrayContainer<string> splitTokens(const string &line) {
@@ -32,6 +27,17 @@ ArrayContainer<string> splitTokens(const string &line) {
     }
     if (!token.empty()) tokens.insert(token);
     return tokens;
+}
+
+// --- Memory estimation helpers ---
+template <typename T>
+size_t estimateArrayMemory(ArrayContainer<T>& arr) {
+    return arr.getSize() * sizeof(T);
+}
+
+template <typename T>
+size_t estimateLinkedListMemory(LinkedListContainer<T>& list) {
+    return list.getSize() * (sizeof(T) + sizeof(void*));
 }
 
 int main() {
@@ -78,6 +84,10 @@ int main() {
     bool jobFound = false;
 
     // ---------------- ARRAY VERSION ----------------
+    int totalMatchesArray = 0;
+    double arrMatchTime = 0, arrSortTime = 0, arrSearchTime = 0;
+    size_t arrMemory = 0;
+
     for (int j = 0; j < jobsArray.getSize(); j++) {
         Job jb = jobsArray.get(j);
         string jobText = toLowerStr(jb.getTitle() + " " + jb.getDescription());
@@ -86,45 +96,48 @@ int main() {
             jobFound = true;
             cout << "\n[Array] Job: \"" << jb.getTitle() << "\"" << endl;
 
-            clock_t start = clock();
+            clock_t startMatch = clock();
             ArrayContainer<CandidateMatch> arrCandidates;
 
             // Score each resume
             for (int r = 0; r < resumesArray.getSize(); r++) {
                 Resume res = resumesArray.get(r);
-
                 int score = JobMatcher::calculateScore(jb, res);
-
                 if (score > 0) arrCandidates.insert({res, score});
             }
-            clock_t end = clock();
-            double arrTime = double(end - start) / CLOCKS_PER_SEC;
+            clock_t endMatch = clock();
+            arrMatchTime = double(endMatch - startMatch) / CLOCKS_PER_SEC;
 
-            // --- Sort by score (Bubble Sort) ---
-            for (int a = 0; a < arrCandidates.getSize() - 1; a++) {
-                for (int b = 0; b < arrCandidates.getSize() - a - 1; b++) {
-                    if (arrCandidates.get(b).score < arrCandidates.get(b + 1).score) {
-                        CandidateMatch temp = arrCandidates.get(b);
-                        arrCandidates.get(b) = arrCandidates.get(b + 1);
-                        arrCandidates.get(b + 1) = temp;
-                    }
-                }
-            }
+            // --- Sort by score (Bubble Sort, highest first) ---
+            clock_t startSort = clock();
+            arrCandidates.bubbleSortByScore();   // ✅ use the new method in ArrayContainer.hpp
+            clock_t endSort = clock();
+            arrSortTime = double(endSort - startSort) / CLOCKS_PER_SEC;
+
+            arrSearchTime = arrMatchTime + arrSortTime;
+            arrMemory = estimateArrayMemory(arrCandidates);
+            totalMatchesArray = arrCandidates.getSize();
 
             // --- Print Top 5 ---
             int shown = 0;
             for (int i = 0; i < arrCandidates.getSize() && shown < 5; i++, shown++) {
-                cout << "   -> Candidate Resume: " 
-                    << arrCandidates.get(i).resume.getDescription() << endl;
+                cout << "   -> Candidate Resume: \"" 
+                    << arrCandidates.get(i).resume.getDescription() << "\"" << endl;
                 cout << "      Score: " << arrCandidates.get(i).score << endl;
-
             }
-            cout << "   [Total Matches: " << arrCandidates.getSize()
-                 << " | Time: " << arrTime << " sec]" << endl;
+            cout << "   [Total Matches: " << totalMatchesArray
+                << " | Match Time: " << arrMatchTime << "s"
+                << " | Sort Time: " << arrSortTime << "s]" << endl;
+            cout << "[Array] Search Time: " << arrSearchTime << "s" << endl;
         }
     }
 
+
     // ---------------- LINKEDLIST VERSION ----------------
+    int totalMatchesList = 0;
+    double listMatchTime = 0, listSortTime = 0, listSearchTime = 0;
+    size_t listMemory = 0;
+
     auto* jobNode = jobsList.getHead();
     while (jobNode) {
         Job jb = jobNode->data;
@@ -133,38 +146,60 @@ int main() {
         if (jobText.find(keyword) != string::npos) {
             cout << "\n[LinkedList] Job: \"" << jb.getTitle() << "\"" << endl;
 
-            clock_t start = clock();
+            clock_t startMatch = clock();
             LinkedListContainer<CandidateMatch> listCandidates;
 
             auto* resNode = resumesList.getHead();
             while (resNode) {
                 Resume res = resNode->data;
                 int score = JobMatcher::calculateScore(jb, res);
-
                 if (score > 0) listCandidates.insert({res, score});
                 resNode = resNode->next;
             }
-            clock_t end = clock();
-            double listTime = double(end - start) / CLOCKS_PER_SEC;
+            clock_t endMatch = clock();
+            listMatchTime = double(endMatch - startMatch) / CLOCKS_PER_SEC;
+
+            // --- Sort by score (Bubble Sort) ---
+            clock_t startSort = clock();
+            listCandidates.bubbleSortByScore();
+            clock_t endSort = clock();
+            listSortTime = double(endSort - startSort) / CLOCKS_PER_SEC;
+
+            listSearchTime = listMatchTime + listSortTime;
+            listMemory = estimateLinkedListMemory(listCandidates);
+            totalMatchesList = listCandidates.getSize();
 
             // --- Print Top 5 ---
             int shown = 0;
             auto* candNode = listCandidates.getHead();
             while (candNode && shown < 5) {
-                cout << "   -> Candidate Resume: " 
-                    << candNode->data.resume.getDescription() << endl;
+                cout << "   -> Candidate Resume: \"" 
+                    << candNode->data.resume.getDescription() << "\"" << endl;
                 cout << "      Score: " << candNode->data.score << endl;
-
                 candNode = candNode->next;
                 shown++;
             }
-            cout << "   [Total Matches: " << listCandidates.getSize()
-                << " | Time: " << listTime << " sec]" << endl;
+            cout << "   [Total Matches: " << totalMatchesList
+                << " | Match Time: " << listMatchTime << "s"
+                << " | Sort Time: " << listSortTime << "s]" << endl;
+            cout << "[LinkedList] Search Time: " << listSearchTime << "s" << endl;
         }
         jobNode = jobNode->next;
     }
 
+    // ---------------- PERFORMANCE COMPARISON TABLE ----------------
+    if (jobFound) {
+        cout << "\n===== Performance Comparison =====" << endl;
+        cout << "Structure     | Matches | Match Time | Sort Time | Search Time | Memory (bytes)" << endl;
+        cout << "--------------------------------------------------------------------------" << endl;
+        cout << "Array         | " << totalMatchesArray
+            << "      | " << arrMatchTime << "s | " << arrSortTime
+            << "s | " << arrSearchTime << "s | " << arrMemory << endl;
 
+        cout << "LinkedList    | " << totalMatchesList
+            << "      | " << listMatchTime << "s | " << listSortTime
+            << "s | " << listSearchTime << "s | " << listMemory << endl;
+    }
 
     if (!jobFound) {
         cout << "No job found matching: " << keyword << endl;

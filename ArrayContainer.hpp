@@ -41,6 +41,12 @@ public:
         return arr[index];
     }
 
+    // ✅ NEW: return reference so sorting works
+    T& getRef(int index) {
+        if (index < 0 || index >= size) throw out_of_range("Index out of range");
+        return arr[index];
+    }
+
     int getSize() const { return size; }
 
     /* -------- Linear Search (case-insensitive) -------- */
@@ -55,11 +61,11 @@ public:
         return -1;
     }
 
-    /* -------- Bubble Sort (by description/skills) -------- */
-    void bubbleSort() {
+    /* -------- Bubble Sort by CandidateMatch score (highest first) -------- */
+    void bubbleSortByScore() {
         for (int i = 0; i < size - 1; i++) {
             for (int j = 0; j < size - i - 1; j++) {
-                if (arr[j].getDescription() > arr[j + 1].getDescription()) {
+                if (arr[j].score < arr[j + 1].score) {
                     T temp = arr[j];
                     arr[j] = arr[j + 1];
                     arr[j + 1] = temp;

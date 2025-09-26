@@ -69,14 +69,15 @@ public:
         return -1;
     }
 
-    /* -------- Bubble Sort (by description/skills) -------- */
-    void bubbleSort() {
+    /* -------- Bubble Sort (by CandidateMatch score) -------- */
+    void bubbleSortByScore() {
         if (!head) return;
         for (int i = 0; i < size; i++) {
             Node* curr = head;
             Node* next = head->next;
             while (next) {
-                if (curr->data.getDescription() > next->data.getDescription()) {
+                if (curr->data.score < next->data.score) {
+                    // swap using T (not CandidateMatch directly)
                     T temp = curr->data;
                     curr->data = next->data;
                     next->data = temp;
@@ -86,6 +87,8 @@ public:
             }
         }
     }
+
+
 
     /* -------- Selection Sort (by description/skills) -------- */
     void selectionSort() {

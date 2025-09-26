@@ -13,23 +13,26 @@
 using namespace std;
 
 // --- Tokenizer: split by any non-alphanumeric character ---
+// This function splits text into lowercase words (tokens).
+// Example: "Python, SQL!" → ["python", "sql"]
 ArrayContainer<string> splitTokens(const string &line) {
     ArrayContainer<string> tokens;
     string token;
     for (char c : line) {
-        if (isalnum(c)) token += tolower(c);
+        if (isalnum(c)) token += tolower(c); // build a word from letters/numbers
         else {
             if (!token.empty()) {
-                tokens.insert(token);
-                token.clear();
+                tokens.insert(token);  // save the word
+                token.clear();         // reset for next word
             }
         }
     }
-    if (!token.empty()) tokens.insert(token);
+    if (!token.empty()) tokens.insert(token); // last token
     return tokens;
 }
 
 // --- Memory estimation helpers ---
+// Roughly estimate how much memory each container uses.
 template <typename T>
 size_t estimateArrayMemory(ArrayContainer<T>& arr) {
     return arr.getSize() * sizeof(T);
@@ -37,16 +40,17 @@ size_t estimateArrayMemory(ArrayContainer<T>& arr) {
 
 template <typename T>
 size_t estimateLinkedListMemory(LinkedListContainer<T>& list) {
-    return list.getSize() * (sizeof(T) + sizeof(void*));
+    return list.getSize() * (sizeof(T) + sizeof(void*)); // node + pointer
 }
 
 int main() {
+    // Data structures for storing jobs & resumes
     ArrayContainer<Job> jobsArray;
     ArrayContainer<Resume> resumesArray;
     LinkedListContainer<Job> jobsList;
     LinkedListContainer<Resume> resumesList;
 
-    // Load job data (1 column only)
+    // =================== LOAD JOB DATA ===================
     ifstream jobFile("job_description.csv");
     if (!jobFile.is_open()) {
         cerr << "Error: job_description.csv not found!" << endl;
@@ -55,19 +59,20 @@ int main() {
     string line;
     int id = 1;
     while (getline(jobFile, line)) {
-        // Robust validation
+        // Skip empty or malformed lines
         if (line.empty() || line.find_first_not_of(" \t") == string::npos) continue;
         if (line.size() < 5) {
             cerr << "Warning: Skipping malformed job line: \"" << line << "\"" << endl;
             continue;
         }
 
-        Job jb(id++, line, "");   // whole line is the job text
+        // Store job (whole line = description, title left blank)
+        Job jb(id++, line, "");
         jobsArray.insert(jb);
         jobsList.insert(jb);
     }
 
-    // Load resumes (1 column only)
+    // =================== LOAD RESUME DATA ===================
     ifstream resFile("resume.csv");
     if (!resFile.is_open()) {
         cerr << "Error: resume.csv not found!" << endl;
@@ -86,11 +91,12 @@ int main() {
         resumesList.insert(rs);
     }
 
+    // =================== USER INPUT ===================
     cout << "===== Job → Candidate Matching =====" << endl;
     cout << "Enter a job title or skill: ";
     string keyword;
     getline(cin, keyword);
-    keyword = toLowerStr(keyword);
+    keyword = toLowerStr(keyword); // normalize lowercase
 
     bool jobFound = false;
 
@@ -99,37 +105,40 @@ int main() {
     double arrMatchTime = 0, arrSortTime = 0, arrSearchTime = 0;
     size_t arrMemory = 0;
 
+    // Loop through all jobs in array
     for (int j = 0; j < jobsArray.getSize(); j++) {
         Job jb = jobsArray.get(j);
         string jobText = toLowerStr(jb.getTitle() + " " + jb.getDescription());
 
+        // Check if job contains keyword
         if (jobText.find(keyword) != string::npos) {
             jobFound = true;
             cout << "\n[Array] Job: \"" << jb.getTitle() << "\"" << endl;
 
+            // Match resumes to this job
             clock_t startMatch = clock();
             ArrayContainer<CandidateMatch> arrCandidates;
 
-            // Score each resume
             for (int r = 0; r < resumesArray.getSize(); r++) {
                 Resume res = resumesArray.get(r);
-                int score = JobMatcher::calculateScore(jb, res);
+                int score = JobMatcher::calculateScore(jb, res); // keyword overlap
                 if (score > 0) arrCandidates.insert({res, score});
             }
             clock_t endMatch = clock();
             arrMatchTime = double(endMatch - startMatch) / CLOCKS_PER_SEC;
 
-            // --- Sort by score (Bubble Sort, highest first) ---
+            // Sort candidates by score (highest first)
             clock_t startSort = clock();
-            arrCandidates.bubbleSortByScore();
+            arrCandidates.bubbleSortByScore(); // implemented in ArrayContainer
             clock_t endSort = clock();
             arrSortTime = double(endSort - startSort) / CLOCKS_PER_SEC;
 
+            // Calculate performance stats
             arrSearchTime = arrMatchTime + arrSortTime;
             arrMemory = estimateArrayMemory(arrCandidates);
             totalMatchesArray = arrCandidates.getSize();
 
-            // --- Print Top 5 ---
+            // Print top 5 candidates
             int shown = 0;
             for (int i = 0; i < arrCandidates.getSize() && shown < 5; i++, shown++) {
                 cout << "   -> Candidate Resume: \"" 
@@ -156,6 +165,7 @@ int main() {
         if (jobText.find(keyword) != string::npos) {
             cout << "\n[LinkedList] Job: \"" << jb.getTitle() << "\"" << endl;
 
+            // Match resumes to this job
             clock_t startMatch = clock();
             LinkedListContainer<CandidateMatch> listCandidates;
 
@@ -169,17 +179,18 @@ int main() {
             clock_t endMatch = clock();
             listMatchTime = double(endMatch - startMatch) / CLOCKS_PER_SEC;
 
-            // --- Sort by score (Bubble Sort) ---
+            // Sort candidates by score
             clock_t startSort = clock();
-            listCandidates.bubbleSortByScore();
+            listCandidates.bubbleSortByScore(); // implemented in LinkedListContainer
             clock_t endSort = clock();
             listSortTime = double(endSort - startSort) / CLOCKS_PER_SEC;
 
+            // Calculate performance stats
             listSearchTime = listMatchTime + listSortTime;
             listMemory = estimateLinkedListMemory(listCandidates);
             totalMatchesList = listCandidates.getSize();
 
-            // --- Print Top 5 ---
+            // Print top 5 candidates
             int shown = 0;
             auto* candNode = listCandidates.getHead();
             while (candNode && shown < 5) {
@@ -197,7 +208,7 @@ int main() {
         jobNode = jobNode->next;
     }
 
-    // ---------------- PERFORMANCE COMPARISON TABLE ----------------
+    // =================== PERFORMANCE SUMMARY ===================
     if (jobFound) {
         cout << "\n===== Performance Comparison =====" << endl;
         cout << "Structure     | Matches | Match Time | Sort Time | Search Time | Memory (bytes)" << endl;

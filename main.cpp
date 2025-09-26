@@ -114,9 +114,10 @@ int main() {
             // --- Print Top 5 ---
             int shown = 0;
             for (int i = 0; i < arrCandidates.getSize() && shown < 5; i++, shown++) {
-                cout << "   -> Candidate Resume: \"" 
-                     << arrCandidates.get(i).resume.getDescription()
-                     << " | Score: " << arrCandidates.get(i).score << "\"" << endl;
+                cout << "   -> Candidate Resume: " 
+                    << arrCandidates.get(i).resume.getDescription() << endl;
+                cout << "      Score: " << arrCandidates.get(i).score << endl;
+
             }
             cout << "   [Total Matches: " << arrCandidates.getSize()
                  << " | Time: " << arrTime << " sec]" << endl;
@@ -138,7 +139,6 @@ int main() {
             auto* resNode = resumesList.getHead();
             while (resNode) {
                 Resume res = resNode->data;
-                
                 int score = JobMatcher::calculateScore(jb, res);
 
                 if (score > 0) listCandidates.insert({res, score});
@@ -147,21 +147,24 @@ int main() {
             clock_t end = clock();
             double listTime = double(end - start) / CLOCKS_PER_SEC;
 
-            // --- Print Top 5 (LinkedList, simple linear scan unsorted) ---
+            // --- Print Top 5 ---
             int shown = 0;
             auto* candNode = listCandidates.getHead();
             while (candNode && shown < 5) {
-                cout << "   -> Candidate Resume: \"" 
-                     << candNode->data.resume.getDescription()
-                     << " | Score: " << candNode->data.score << "\"" << endl;
+                cout << "   -> Candidate Resume: " 
+                    << candNode->data.resume.getDescription() << endl;
+                cout << "      Score: " << candNode->data.score << endl;
+
                 candNode = candNode->next;
                 shown++;
             }
             cout << "   [Total Matches: " << listCandidates.getSize()
-                 << " | Time: " << listTime << " sec]" << endl;
+                << " | Time: " << listTime << " sec]" << endl;
         }
         jobNode = jobNode->next;
     }
+
+
 
     if (!jobFound) {
         cout << "No job found matching: " << keyword << endl;

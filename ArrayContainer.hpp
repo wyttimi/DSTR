@@ -41,7 +41,7 @@ public:
         return arr[index];
     }
 
-    int getSize() { return size; }
+    int getSize() const { return size; }
 
     /* -------- Linear Search (case-insensitive) -------- */
     int linearSearch(string keyword) {

@@ -37,7 +37,7 @@ public:
         size++;
     }
 
-    int getSize() { return size; }
+    int getSize() const { return size; }
     Node* getHead() { return head; }
 
     /* -------- get by index (for fair comparison with array) -------- */

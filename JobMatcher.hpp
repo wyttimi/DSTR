@@ -5,13 +5,12 @@
 #include "Resume.hpp"
 #include <sstream>
 #include <set>
-#include <cctype>
-using namespace std;
+#include <algorithm>
 
 class JobMatcher {
 public:
-    static int calculateScore(const Job &job, const Resume &resume) {
-        set<string> jobWords = tokenize(job.title + " " + job.description);
+    static int calculateScore(Job job, Resume resume) {
+        set<string> jobWords = tokenize(job.getTitle() + " " + job.getDescription());
         set<string> resumeWords = tokenize(resume.getDescription());
 
         int score = 0;
@@ -26,18 +25,29 @@ public:
 private:
     static set<string> tokenize(string text) {
         set<string> words;
+        stringstream ss(text);
         string word;
-        for (char &c : text) {
-            if (isalnum(c)) {
-                word += tolower(c);
-            } else {
-                if (!word.empty()) {
-                    words.insert(word);
-                    word.clear();
-                }
+
+        // --- common stopwords we ignore ---
+        set<string> stopwords = {
+            "in","with","and","or","needed","experience",
+            "professional","skilled","for","to","of","the","a","an",
+            "is","are","on","as","at","by","from","that"
+        };
+
+        while (ss >> word) {
+            // lowercase
+            for (char &c : word) c = tolower(c);
+
+            // strip punctuation
+            word.erase(remove_if(word.begin(), word.end(),
+                                 [](char c){ return ispunct(c); }),
+                       word.end());
+
+            if (!word.empty() && stopwords.find(word) == stopwords.end()) {
+                words.insert(word);
             }
         }
-        if (!word.empty()) words.insert(word);
         return words;
     }
 };

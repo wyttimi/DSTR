@@ -2,6 +2,9 @@
 #define LINKEDLISTCONTAINER_HPP
 
 #include <iostream>
+#include <string>
+#include <stdexcept>
+#include "Utils.hpp"
 using namespace std;
 
 template <class T>
@@ -37,13 +40,27 @@ public:
     int getSize() { return size; }
     Node* getHead() { return head; }
 
-    /* -------- Linear Search -------- */
+    /* -------- get by index (for fair comparison with array) -------- */
+    T get(int index) {
+        if (index < 0 || index >= size) throw out_of_range("Index out of range");
+        Node* temp = head;
+        int i = 0;
+        while (temp) {
+            if (i == index) return temp->data;
+            temp = temp->next;
+            i++;
+        }
+        throw out_of_range("Index not found");
+    }
+
+    /* -------- Linear Search (case-insensitive) -------- */
     int linearSearch(string keyword) {
+        string key = toLowerStr(keyword);
         Node* temp = head;
         int index = 0;
         while (temp) {
-            if (temp->data.getTitle().find(keyword) != string::npos ||
-                temp->data.getDescription().find(keyword) != string::npos) {
+            if (toLowerStr(temp->data.getTitle()).find(key) != string::npos ||
+                toLowerStr(temp->data.getDescription()).find(key) != string::npos) {
                 return index;
             }
             temp = temp->next;
@@ -52,14 +69,14 @@ public:
         return -1;
     }
 
-    /* -------- Bubble Sort -------- */
+    /* -------- Bubble Sort (by description/skills) -------- */
     void bubbleSort() {
         if (!head) return;
         for (int i = 0; i < size; i++) {
             Node* curr = head;
             Node* next = head->next;
             while (next) {
-                if (curr->data.getTitle() > next->data.getTitle()) {
+                if (curr->data.getDescription() > next->data.getDescription()) {
                     T temp = curr->data;
                     curr->data = next->data;
                     next->data = temp;
@@ -70,7 +87,7 @@ public:
         }
     }
 
-    /* -------- Selection Sort -------- */
+    /* -------- Selection Sort (by description/skills) -------- */
     void selectionSort() {
         if (!head) return;
         Node* start = head;
@@ -78,7 +95,7 @@ public:
             Node* minNode = start;
             Node* curr = start->next;
             while (curr) {
-                if (curr->data.getTitle() < minNode->data.getTitle()) {
+                if (curr->data.getDescription() < minNode->data.getDescription()) {
                     minNode = curr;
                 }
                 curr = curr->next;
@@ -92,9 +109,10 @@ public:
         }
     }
 
-    /* -------- Binary Search -------- */
-    // Trick: Copy to array and then apply binary search
+    /* -------- Binary Search (case-insensitive, on description) -------- */
     int binarySearch(string keyword) {
+        string key = toLowerStr(keyword);
+        // copy to array first
         T* tempArr = new T[size];
         Node* temp = head;
         int idx = 0;
@@ -105,12 +123,12 @@ public:
         int left = 0, right = size - 1;
         while (left <= right) {
             int mid = (left + right) / 2;
-            string title = tempArr[mid].getTitle();
-            if (title.find(keyword) != string::npos) {
+            string desc = toLowerStr(tempArr[mid].getDescription());
+            if (desc.find(key) != string::npos) {
                 delete[] tempArr;
                 return mid;
             }
-            if (title < keyword) left = mid + 1;
+            if (desc < key) left = mid + 1;
             else right = mid - 1;
         }
         delete[] tempArr;

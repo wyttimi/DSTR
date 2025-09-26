@@ -7,15 +7,15 @@ using namespace std;
 class Resume {
 public:
     int id;
-    string name;
     string description;
 
     Resume() {}
-    Resume(int i, string n, string d) {
+    Resume(int i, string d) {
         id = i;
-        name = n;
         description = d;
     }
+
+    string getDescription() const { return description; }
 };
 
 #endif

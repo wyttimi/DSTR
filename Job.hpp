@@ -16,6 +16,9 @@ public:
         title = t;
         description = d;
     }
+
+    string getTitle() const { return title; }
+    string getDescription() const { return description; }
 };
 
 #endif

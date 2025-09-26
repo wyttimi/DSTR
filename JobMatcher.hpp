@@ -5,12 +5,14 @@
 #include "Resume.hpp"
 #include <sstream>
 #include <set>
+#include <cctype>
+using namespace std;
 
 class JobMatcher {
 public:
-    static int calculateScore(Job job, Resume resume) {
-        set<string> jobWords = tokenize(job.description);
-        set<string> resumeWords = tokenize(resume.description);
+    static int calculateScore(const Job &job, const Resume &resume) {
+        set<string> jobWords = tokenize(job.title + " " + job.description);
+        set<string> resumeWords = tokenize(resume.getDescription());
 
         int score = 0;
         for (auto &w : resumeWords) {
@@ -24,11 +26,18 @@ public:
 private:
     static set<string> tokenize(string text) {
         set<string> words;
-        stringstream ss(text);
         string word;
-        while (ss >> word) {
-            words.insert(word);
+        for (char &c : text) {
+            if (isalnum(c)) {
+                word += tolower(c);
+            } else {
+                if (!word.empty()) {
+                    words.insert(word);
+                    word.clear();
+                }
+            }
         }
+        if (!word.empty()) words.insert(word);
         return words;
     }
 };

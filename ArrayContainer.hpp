@@ -2,6 +2,9 @@
 #define ARRAYCONTAINER_HPP
 
 #include <iostream>
+#include <string>
+#include <stdexcept>
+#include "Utils.hpp"
 using namespace std;
 
 template <class T>
@@ -33,25 +36,30 @@ public:
         arr[size++] = item;
     }
 
-    T get(int index) { return arr[index]; }
+    T get(int index) {
+        if (index < 0 || index >= size) throw out_of_range("Index out of range");
+        return arr[index];
+    }
+
     int getSize() { return size; }
 
-    /* -------- Linear Search -------- */
+    /* -------- Linear Search (case-insensitive) -------- */
     int linearSearch(string keyword) {
+        string key = toLowerStr(keyword);
         for (int i = 0; i < size; i++) {
-            if (arr[i].getTitle().find(keyword) != string::npos ||
-                arr[i].getDescription().find(keyword) != string::npos) {
+            if (toLowerStr(arr[i].getTitle()).find(key) != string::npos ||
+                toLowerStr(arr[i].getDescription()).find(key) != string::npos) {
                 return i;
             }
         }
         return -1;
     }
 
-    /* -------- Bubble Sort (by title) -------- */
+    /* -------- Bubble Sort (by description/skills) -------- */
     void bubbleSort() {
         for (int i = 0; i < size - 1; i++) {
             for (int j = 0; j < size - i - 1; j++) {
-                if (arr[j].getTitle() > arr[j + 1].getTitle()) {
+                if (arr[j].getDescription() > arr[j + 1].getDescription()) {
                     T temp = arr[j];
                     arr[j] = arr[j + 1];
                     arr[j + 1] = temp;
@@ -60,12 +68,12 @@ public:
         }
     }
 
-    /* -------- Selection Sort (by title) -------- */
+    /* -------- Selection Sort (by description/skills) -------- */
     void selectionSort() {
         for (int i = 0; i < size - 1; i++) {
             int minIndex = i;
             for (int j = i + 1; j < size; j++) {
-                if (arr[j].getTitle() < arr[minIndex].getTitle()) {
+                if (arr[j].getDescription() < arr[minIndex].getDescription()) {
                     minIndex = j;
                 }
             }
@@ -77,14 +85,15 @@ public:
         }
     }
 
-    /* -------- Binary Search (needs sorted) -------- */
+    /* -------- Binary Search (case-insensitive, on description) -------- */
     int binarySearch(string keyword) {
+        string key = toLowerStr(keyword);
         int left = 0, right = size - 1;
         while (left <= right) {
             int mid = (left + right) / 2;
-            string title = arr[mid].getTitle();
-            if (title.find(keyword) != string::npos) return mid;
-            if (title < keyword) left = mid + 1;
+            string desc = toLowerStr(arr[mid].getDescription());
+            if (desc.find(key) != string::npos) return mid;
+            if (desc < key) left = mid + 1;
             else right = mid - 1;
         }
         return -1;

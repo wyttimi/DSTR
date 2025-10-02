@@ -1,14 +1,14 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <vector>
 #include <string>
 #include <algorithm>
 #include <cctype>
 using namespace std;
 
-// Dictionary of valid skills (lowercase for matching)
-vector<string> validSkills = {
+// Fixed size for valid skills dictionary
+const int VALID_SKILL_COUNT = 29;
+string validSkills[VALID_SKILL_COUNT] = {
     "sql", "excel", "power bi", "tableau", "reporting", "data cleaning",
     "python", "statistics", "machine learning", "deep learning", "nlp", "pandas",
     "git", "docker", "system design", "spring boot", "rest apis", "agile", "scrum",
@@ -29,7 +29,7 @@ string trim(string s) {
     return s;
 }
 
-// Remove punctuation characters from start and end
+// Remove punctuation from start and end
 string cleanToken(string s) {
     s = trim(s);
     while (!s.empty() && ispunct(s.back())) s.pop_back();
@@ -37,11 +37,11 @@ string cleanToken(string s) {
     return trim(s);
 }
 
-// Check if a word matches a valid skill
+// Check if token is a valid skill
 bool isSkill(const string &word) {
     string lw = toLowerStr(word);
-    for (const string &s : validSkills) {
-        if (lw == s) return true;
+    for (int i = 0; i < VALID_SKILL_COUNT; i++) {
+        if (lw == validSkills[i]) return true;
     }
     return false;
 }
@@ -54,7 +54,6 @@ int main() {
         cerr << "Error: resume.csv not found!" << endl;
         return 1;
     }
-
     if (!outfile.is_open()) {
         cerr << "Error: cannot create cleaned_resumes.csv" << endl;
         return 1;
@@ -70,29 +69,30 @@ int main() {
         size_t pos = line.find("skilled in");
         if (pos == string::npos) continue;
 
-        string skillsPart = line.substr(pos + 10); // after "skilled in"
+        string skillsPart = line.substr(pos + 10);
 
-        // replace '.' with ',' so Tableau. → Tableau,
+        // Replace punctuation
         for (char &c : skillsPart) {
             if (c == '.' || c == ';') c = ',';
         }
 
         stringstream ss(skillsPart);
         string token;
-        vector<string> cleanSkills;
+        string cleanSkills[50];
+        int skillCount = 0;
 
         while (getline(ss, token, ',')) {
-            string original = cleanToken(token); // keep original case
+            string original = cleanToken(token);
             if (!original.empty() && isSkill(toLowerStr(original))) {
-                cleanSkills.push_back(original);
+                cleanSkills[skillCount++] = original; // store in array
             }
         }
 
-        if (!cleanSkills.empty()) {
+        if (skillCount > 0) {
             outfile << "Experienced professional skilled in ";
-            for (size_t i = 0; i < cleanSkills.size(); i++) {
+            for (int i = 0; i < skillCount; i++) {
                 outfile << cleanSkills[i];
-                if (i < cleanSkills.size() - 1) outfile << ", ";
+                if (i < skillCount - 1) outfile << ", ";
             }
             outfile << "\n";
         }
@@ -101,6 +101,6 @@ int main() {
     infile.close();
     outfile.close();
 
-    cout << "Cleaning resumes done! Saved as resume_clean.csv" << endl;
+    cout << "Cleaning resumes done! Saved as cleaned_resumes.csv" << endl;
     return 0;
 }

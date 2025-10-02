@@ -55,6 +55,14 @@ int main() {
         return 1;
     }
 
+    if (!outfile.is_open()) {
+        cerr << "Error: cannot create cleaned_resumes.csv" << endl;
+        return 1;
+    }
+
+    // Add header
+    outfile << "Resume Description\n";
+
     string line;
     while (getline(infile, line)) {
         if (line.empty()) continue;

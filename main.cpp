@@ -17,12 +17,6 @@
 using namespace std;
 
 // --- Memory estimation helpers ---
-size_t estimateArrayMemoryJobs(ArrayContainerJob& arr) {
-    return arr.getSize() * sizeof(Job);
-}
-size_t estimateArrayMemoryResumes(ArrayContainerResume& arr) {
-    return arr.getSize() * sizeof(Resume);
-}
 size_t estimateArrayMemoryCandidates(ArrayContainerCandidate& arr) {
     return arr.getSize() * sizeof(CandidateMatch);
 }
@@ -38,9 +32,9 @@ int main() {
     LinkedListContainerResume resumesList;
 
     // =================== LOAD JOB DATA ===================
-    ifstream jobFile("job_description.csv");
+    ifstream jobFile("cleaned_jobs.csv");
     if (!jobFile.is_open()) {
-        cerr << "Error: job_description.csv not found!" << endl;
+        cerr << "Error: cleaned_jobs.csv not found!" << endl;
         return 1;
     }
 
@@ -49,14 +43,13 @@ int main() {
     while (getline(jobFile, line)) {
         if (line.empty() || line.find_first_not_of(" \t") == string::npos) continue;
         if (line.size() < 5) continue; // malformed line
-
         Job jb(id++, line, "");
         jobsArray.insert(jb);
         jobsList.insert(jb);
     }
 
     // =================== LOAD RESUME DATA ===================
-    ifstream resFile("resume.csv");
+    ifstream resFile("cleaned_resumes.csv");
     if (!resFile.is_open()) {
         cerr << "Error: resume.csv not found!" << endl;
         return 1;
@@ -66,7 +59,6 @@ int main() {
     while (getline(resFile, line)) {
         if (line.empty() || line.find_first_not_of(" \t") == string::npos) continue;
         if (line.size() < 5) continue; // malformed line
-
         Resume rs(rid++, line);
         resumesArray.insert(rs);
         resumesList.insert(rs);
@@ -78,6 +70,15 @@ int main() {
     string keyword;
     getline(cin, keyword);
     keyword = toLowerStr(keyword);
+
+    cout << "\nChoose which candidates to display:\n";
+    cout << "1. Top 5 matches\n";
+    cout << "2. Average 5 matches\n";
+    cout << "3. Lowest 5 matches\n";
+    cout << "Enter choice (1/2/3): ";
+    int choice;
+    cin >> choice;
+    cin.ignore();
 
     bool jobFound = false;
 
@@ -96,13 +97,11 @@ int main() {
             cout << "\n[Array] Job: \"" << jb.getDescription() << "\"" << endl;
 
             clock_t startMatch = clock();
-
             for (int r = 0; r < resumesArray.getSize(); r++) {
                 Resume res = resumesArray.get(r);
                 int score = JobMatcher::calculateScore(jb, res);
                 if (score > 0) arrCandidates.insert({res, score});
             }
-
             clock_t endMatch = clock();
             arrMatchTime = double(endMatch - startMatch) / CLOCKS_PER_SEC;
 
@@ -116,11 +115,27 @@ int main() {
             arrMemory = estimateArrayMemoryCandidates(arrCandidates);
             totalMatchesArray = arrCandidates.getSize();
 
-            // Print Top 5
-            for (int i = 0; i < arrCandidates.getSize() && i < 5; i++) {
-                cout << "   -> Candidate Resume: \""
-                     << arrCandidates.get(i).resume.getDescription() << "\"" << endl;
-                cout << "      Score: " << arrCandidates.get(i).score << endl;
+            // Print candidates based on user choice
+            if (choice == 1) {
+                for (int i = 0; i < arrCandidates.getSize() && i < 5; i++) {
+                    cout << "   -> Candidate Resume: \"" 
+                         << arrCandidates.get(i).resume.getDescription() << "\"" << endl;
+                    cout << "      Score: " << arrCandidates.get(i).score << endl;
+                }
+            } else if (choice == 2) {
+                int mid = arrCandidates.getSize() / 2;
+                int start = max(0, mid - 2);
+                for (int i = start; i < arrCandidates.getSize() && i < start + 5; i++) {
+                    cout << "   -> Candidate Resume: \"" 
+                         << arrCandidates.get(i).resume.getDescription() << "\"" << endl;
+                    cout << "      Score: " << arrCandidates.get(i).score << endl;
+                }
+            } else if (choice == 3) {
+                for (int i = max(0, arrCandidates.getSize() - 5); i < arrCandidates.getSize(); i++) {
+                    cout << "   -> Candidate Resume: \"" 
+                         << arrCandidates.get(i).resume.getDescription() << "\"" << endl;
+                    cout << "      Score: " << arrCandidates.get(i).score << endl;
+                }
             }
 
             cout << "   [Total Matches: " << totalMatchesArray
@@ -155,7 +170,7 @@ int main() {
             clock_t endMatch = clock();
             listMatchTime = double(endMatch - startMatch) / CLOCKS_PER_SEC;
 
-            // Sort by score
+            // Sort
             clock_t startSort = clock();
             listCandidates.bubbleSortByScore();
             clock_t endSort = clock();
@@ -165,15 +180,45 @@ int main() {
             listMemory = estimateLinkedListMemoryCandidates(listCandidates);
             totalMatchesList = listCandidates.getSize();
 
-            // Print Top 5
-            auto* candNode = listCandidates.getHead();
-            int shown = 0;
-            while (candNode && shown < 5) {
-                cout << "   -> Candidate Resume: \""
-                     << candNode->data.resume.getDescription() << "\"" << endl;
-                cout << "      Score: " << candNode->data.score << endl;
-                candNode = candNode->next;
-                shown++;
+            // Print candidates based on user choice
+            if (choice == 1) {
+                auto* candNode = listCandidates.getHead();
+                int shown = 0;
+                while (candNode && shown < 5) {
+                    cout << "   -> Candidate Resume: \"" 
+                         << candNode->data.resume.getDescription() << "\"" << endl;
+                    cout << "      Score: " << candNode->data.score << endl;
+                    candNode = candNode->next;
+                    shown++;
+                }
+            } else if (choice == 2) {
+                int mid = totalMatchesList / 2;
+                int start = max(0, mid - 2);
+                auto* candNode = listCandidates.getHead();
+                int idx = 0, shown = 0;
+                while (candNode && shown < 5) {
+                    if (idx >= start) {
+                        cout << "   -> Candidate Resume: \"" 
+                             << candNode->data.resume.getDescription() << "\"" << endl;
+                        cout << "      Score: " << candNode->data.score << endl;
+                        shown++;
+                    }
+                    candNode = candNode->next;
+                    idx++;
+                }
+            } else if (choice == 3) {
+                int skip = max(0, totalMatchesList - 5);
+                auto* candNode = listCandidates.getHead();
+                int idx = 0;
+                while (candNode) {
+                    if (idx >= skip) {
+                        cout << "   -> Candidate Resume: \"" 
+                             << candNode->data.resume.getDescription() << "\"" << endl;
+                        cout << "      Score: " << candNode->data.score << endl;
+                    }
+                    candNode = candNode->next;
+                    idx++;
+                }
             }
 
             cout << "   [Total Matches: " << totalMatchesList

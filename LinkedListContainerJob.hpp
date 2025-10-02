@@ -39,8 +39,7 @@ public:
         Node* temp = head;
         int index = 0;
         while (temp) {
-            if (toLowerStr(temp->data.getTitle()).find(key) != string::npos ||
-                toLowerStr(temp->data.getDescription()).find(key) != string::npos) {
+            if (toLowerStr(temp->data.getDescription()).find(key) != string::npos) {
                 return index;
             }
             temp = temp->next;

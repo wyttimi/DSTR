@@ -6,18 +6,13 @@ using namespace std;
 
 class Job {
 public:
-    int id;
-    string title;
     string description;
 
     Job() {}
-    Job(int i, string t, string d) {
-        id = i;
-        title = t;
+    Job(string d) {
         description = d;
     }
 
-    string getTitle() const { return title; }
     string getDescription() const { return description; }
 };
 

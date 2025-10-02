@@ -10,7 +10,7 @@
 class JobMatcher {
 public:
     static int calculateScore(Job job, Resume resume) {
-        set<string> jobWords = tokenize(job.getTitle() + " " + job.getDescription());
+        set<string> jobWords = tokenize(job.getDescription());
         set<string> resumeWords = tokenize(resume.getDescription());
 
         int score = 0;

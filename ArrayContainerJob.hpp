@@ -43,8 +43,7 @@ public:
     int linearSearch(string keyword) {
         string key = toLowerStr(keyword);
         for (int i = 0; i < size; i++) {
-            if (toLowerStr(arr[i].getTitle()).find(key) != string::npos ||
-                toLowerStr(arr[i].getDescription()).find(key) != string::npos) {
+            if (toLowerStr(arr[i].getDescription()).find(key) != string::npos) {
                 return i;
             }
         }

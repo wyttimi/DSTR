@@ -3,7 +3,15 @@
 #include <string>
 using namespace std;
 
-string trimQuotes(string s) {
+// Helper: Trim leading/trailing spaces
+string trim(string s) {
+    s.erase(0, s.find_first_not_of(" \t"));
+    s.erase(s.find_last_not_of(" \t") + 1);
+    return s;
+}
+
+// Helper: Strip extra quotes
+string stripQuotes(string s) {
     if (!s.empty() && s.front() == '"') s.erase(0, 1);
     if (!s.empty() && s.back() == '"') s.pop_back();
     return s;
@@ -22,6 +30,9 @@ int main() {
         return 1;
     }
 
+    // Only one header column
+    outFile << "Job Description\n";
+
     string line;
     while (getline(inFile, line)) {
         if (line.empty()) continue;
@@ -31,7 +42,7 @@ int main() {
 
         if (pos != string::npos) {
             string jobTitle = line.substr(0, pos);
-            string skills = line.substr(pos + key.length());
+            string skills   = line.substr(pos + key.length());
 
             // stop at first period
             size_t dotPos = skills.find(".");
@@ -40,14 +51,17 @@ int main() {
             }
 
             // trim spaces
-            while (!skills.empty() && skills[0] == ' ')
-                skills.erase(0, 1);
+            jobTitle = trim(jobTitle);
+            skills   = trim(skills);
 
-            // remove stray quotes from jobTitle and skills
-            jobTitle = trimQuotes(jobTitle);
-            skills = trimQuotes(skills);
+            // combine into one sentence
+            string fullLine = jobTitle + " needed with experience in " + skills;
 
-            outFile << jobTitle << "needed with experience in " << skills << "\n";
+            // strip any extra quotes
+            fullLine = stripQuotes(fullLine);
+
+            // write as single quoted field
+            outFile << fullLine << "\n";
         }
     }
 

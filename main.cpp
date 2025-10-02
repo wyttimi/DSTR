@@ -43,7 +43,7 @@ int main() {
     while (getline(jobFile, line)) {
         if (line.empty() || line.find_first_not_of(" \t") == string::npos) continue;
         if (line.size() < 5) continue; // malformed line
-        Job jb(id++, line, "");
+        Job jb(line);
         jobsArray.insert(jb);
         jobsList.insert(jb);
     }
@@ -51,7 +51,7 @@ int main() {
     // =================== LOAD RESUME DATA ===================
     ifstream resFile("cleaned_resumes.csv");
     if (!resFile.is_open()) {
-        cerr << "Error: resume.csv not found!" << endl;
+        cerr << "Error: cleaned_resumes.csv not found!" << endl;
         return 1;
     }
 
@@ -59,7 +59,7 @@ int main() {
     while (getline(resFile, line)) {
         if (line.empty() || line.find_first_not_of(" \t") == string::npos) continue;
         if (line.size() < 5) continue; // malformed line
-        Resume rs(rid++, line);
+        Resume rs(line);
         resumesArray.insert(rs);
         resumesList.insert(rs);
     }
@@ -90,7 +90,7 @@ int main() {
 
     for (int j = 0; j < jobsArray.getSize(); j++) {
         Job jb = jobsArray.get(j);
-        string jobText = toLowerStr(jb.getTitle() + " " + jb.getDescription());
+        string jobText = toLowerStr(jb.getDescription());
 
         if (jobText.find(keyword) != string::npos) {
             jobFound = true;
@@ -154,7 +154,7 @@ int main() {
     auto* jobNode = jobsList.getHead();
     while (jobNode) {
         Job jb = jobNode->data;
-        string jobText = toLowerStr(jb.getTitle() + " " + jb.getDescription());
+        string jobText = toLowerStr(jb.getDescription());
 
         if (jobText.find(keyword) != string::npos) {
             cout << "\n[LinkedList] Job: \"" << jb.getDescription() << "\"" << endl;

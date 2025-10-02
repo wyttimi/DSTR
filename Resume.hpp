@@ -6,12 +6,10 @@ using namespace std;
 
 class Resume {
 public:
-    int id;
     string description;
 
     Resume() {}
-    Resume(int i, string d) {
-        id = i;
+    Resume(string d) {
         description = d;
     }
 

@@ -89,7 +89,6 @@ int main() {
         }
 
         if (skillCount > 0) {
-            outfile << "Experienced professional skilled in ";
             for (int i = 0; i < skillCount; i++) {
                 outfile << cleanSkills[i];
                 if (i < skillCount - 1) outfile << ", ";

@@ -55,7 +55,7 @@ int main() {
             skills   = trim(skills);
 
             // combine into one sentence
-            string fullLine = jobTitle + " needed with experience in " + skills;
+            string fullLine = jobTitle + " | " + skills;
 
             // strip any extra quotes
             fullLine = stripQuotes(fullLine);

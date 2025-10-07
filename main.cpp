@@ -39,10 +39,9 @@ int main() {
     }
 
     string line;
-    int id = 1;
     while (getline(jobFile, line)) {
         if (line.empty() || line.find_first_not_of(" \t") == string::npos) continue;
-        if (line.size() < 5) continue; // malformed line
+        if (line.size() < 5) continue;
         Job jb(line);
         jobsArray.insert(jb);
         jobsList.insert(jb);
@@ -55,10 +54,9 @@ int main() {
         return 1;
     }
 
-    int rid = 1;
     while (getline(resFile, line)) {
         if (line.empty() || line.find_first_not_of(" \t") == string::npos) continue;
-        if (line.size() < 5) continue; // malformed line
+        if (line.size() < 5) continue;
         Resume rs(line);
         resumesArray.insert(rs);
         resumesList.insert(rs);
@@ -80,6 +78,12 @@ int main() {
     cin >> choice;
     cin.ignore();
 
+    cout << "Logging results to output.txt..." << endl;
+
+    // Redirect output after user input
+    freopen("output.txt", "w", stdout);
+    freopen("output.txt", "a", stderr);
+
     bool jobFound = false;
 
     // ---------------- ARRAY VERSION ----------------
@@ -89,10 +93,33 @@ int main() {
     size_t arrMemory = 0;
 
     for (int j = 0; j < jobsArray.getSize(); j++) {
+        arrCandidates.clear();
+
         Job jb = jobsArray.get(j);
         string jobText = toLowerStr(jb.getDescription());
 
-        if (jobText.find(keyword) != string::npos) {
+        // --- Match all words ---
+        bool matched = true;
+        stringstream ss(keyword);
+        string word;
+
+        while (ss >> word) {
+            // remove punctuation
+            word.erase(remove_if(word.begin(), word.end(), ::ispunct), word.end());
+            word = toLowerStr(trim(word));
+
+            if (word.empty()) continue;
+            if (isStopword(word)) continue; // skip common words like "with", "in", etc.
+
+            // require every important word to be found
+            if (jobText.find(word) == string::npos) {
+                matched = false;
+                break;
+            }
+        }
+
+
+        if (matched) {
             jobFound = true;
             cout << "\n[Array] Job: \"" << jb.getDescription() << "\"" << endl;
 
@@ -105,9 +132,13 @@ int main() {
             clock_t endMatch = clock();
             arrMatchTime = double(endMatch - startMatch) / CLOCKS_PER_SEC;
 
+            // Only sort if >1 candidate
+            if (arrCandidates.getSize() > 1)
+                arrCandidates.quickSortByScore();
+
             // Sort by score
             clock_t startSort = clock();
-            arrCandidates.bubbleSortByScore();
+            arrCandidates.quickSortByScore();
             clock_t endSort = clock();
             arrSortTime = double(endSort - startSort) / CLOCKS_PER_SEC;
 
@@ -153,10 +184,32 @@ int main() {
 
     auto* jobNode = jobsList.getHead();
     while (jobNode) {
+        listCandidates.clear();
+
         Job jb = jobNode->data;
         string jobText = toLowerStr(jb.getDescription());
 
-        if (jobText.find(keyword) != string::npos) {
+        // Match all words
+        bool matched = true;
+        stringstream ss(keyword);
+        string word;
+
+        while (ss >> word) {
+            // remove punctuation
+            word.erase(remove_if(word.begin(), word.end(), ::ispunct), word.end());
+            word = toLowerStr(trim(word));
+
+            if (word.empty()) continue;
+            if (isStopword(word)) continue;
+
+            // require every important word to be found
+            if (jobText.find(word) == string::npos) {
+                matched = false;
+                break;
+            }
+        }
+
+        if (matched) {
             cout << "\n[LinkedList] Job: \"" << jb.getDescription() << "\"" << endl;
 
             clock_t startMatch = clock();
@@ -170,9 +223,13 @@ int main() {
             clock_t endMatch = clock();
             listMatchTime = double(endMatch - startMatch) / CLOCKS_PER_SEC;
 
+            // Only sort if >1 candidate
+            if (listCandidates.getSize() > 1)
+                listCandidates.quickSortByScore();
+
             // Sort
             clock_t startSort = clock();
-            listCandidates.bubbleSortByScore();
+            listCandidates.quickSortByScore();
             clock_t endSort = clock();
             listSortTime = double(endSort - startSort) / CLOCKS_PER_SEC;
 
@@ -245,6 +302,17 @@ int main() {
     if (!jobFound) {
         cout << "No job found matching: " << keyword << endl;
     }
+
+    // Restore output to the terminal (cross-platform)
+    fclose(stdout);
+
+    #ifdef _WIN32
+        freopen("CON", "w", stdout);   // Windows console
+    #else
+        freopen("/dev/tty", "w", stdout);   // macOS / Linux terminal
+    #endif
+
+    cout << "\n=== Output successfully written to output.txt ===" << endl;
 
     return 0;
 }

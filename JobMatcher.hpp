@@ -3,6 +3,7 @@
 
 #include "Job.hpp"
 #include "Resume.hpp"
+#include "Utils.hpp"
 #include <sstream>
 #include <set>
 #include <algorithm>
@@ -28,23 +29,16 @@ private:
         stringstream ss(text);
         string word;
 
-        // --- common stopwords we ignore ---
-        set<string> stopwords = {
-            "in","with","and","or","needed","experience",
-            "professional","skilled","for","to","of","the","a","an",
-            "is","are","on","as","at","by","from","that"
-        };
-
         while (ss >> word) {
-            // lowercase
-            for (char &c : word) c = tolower(c);
+            // Use global helpers
+            word = toLowerStr(trim(word));
 
-            // strip punctuation
+            // remove punctuation
             word.erase(remove_if(word.begin(), word.end(),
                                  [](char c){ return ispunct(c); }),
                        word.end());
 
-            if (!word.empty() && stopwords.find(word) == stopwords.end()) {
+            if (!word.empty() && !isStopword(word)) {
                 words.insert(word);
             }
         }

@@ -16,6 +16,29 @@
 
 using namespace std;
 
+// Simple word boundary check function
+bool isWordMatch(const string& text, const string& word) {
+    if (word.empty() || text.empty()) return false;
+    
+    string lowerText = toLowerStr(text);
+    string lowerWord = toLowerStr(word);
+    
+    size_t pos = 0;
+    while ((pos = lowerText.find(lowerWord, pos)) != string::npos) {
+        // Check if character before is not alphanumeric
+        bool startOk = (pos == 0) || (!isalnum(lowerText[pos - 1]));
+        // Check if character after is not alphanumeric
+        bool endOk = (pos + lowerWord.length() >= lowerText.length()) || 
+                     (!isalnum(lowerText[pos + lowerWord.length()]));
+        
+        if (startOk && endOk) {
+            return true;
+        }
+        pos++;
+    }
+    return false;
+}
+
 // --- Memory estimation helpers ---
 size_t estimateArrayMemoryCandidates(ArrayContainerCandidate& arr) {
     return arr.getSize() * sizeof(CandidateMatch);
@@ -64,7 +87,7 @@ int main() {
 
     // =================== USER INPUT ===================
     cout << "===== Job → Candidate Matching =====" << endl;
-    cout << "Enter a job title or skill: ";
+    cout << "Enter job titles or skills: ";
     string keyword;
     getline(cin, keyword);
     keyword = toLowerStr(keyword);
@@ -86,15 +109,18 @@ int main() {
 
     bool jobFound = false;
 
+    // Pre-filter matching jobs (basic arrays)
+    int matchingJobIndices[10000];  // Store indices of matching jobs
+    int matchingJobCount = 0;
+
     // ---------------- ARRAY VERSION ----------------
     ArrayContainerCandidate arrCandidates;
     int totalMatchesArray = 0;
     double arrMatchTime = 0, arrSortTime = 0, arrSearchTime = 0;
     size_t arrMemory = 0;
 
+    // Step 1: Find all matching jobs first
     for (int j = 0; j < jobsArray.getSize(); j++) {
-        arrCandidates.clear();
-
         Job jb = jobsArray.get(j);
         string jobText = toLowerStr(jb.getDescription());
 
@@ -111,15 +137,30 @@ int main() {
             if (word.empty()) continue;
             if (isStopword(word)) continue; // skip common words like "with", "in", etc.
 
-            // require every important word to be found
-            if (jobText.find(word) == string::npos) {
+            // require every important word to be found (exact word match)
+            if (!isWordMatch(jobText, word)) {
                 matched = false;
                 break;
             }
         }
 
-
         if (matched) {
+            matchingJobIndices[matchingJobCount] = j;
+            matchingJobCount++;
+            jobFound = true;
+        }
+    }
+
+    // Step 2: Process candidates only for matching jobs
+    for (int i = 0; i < matchingJobCount; i++) {
+        arrCandidates.clear();
+        // Reset timing variables for each job
+        arrMatchTime = 0; arrSortTime = 0;
+
+        int jobIndex = matchingJobIndices[i];
+        Job jb = jobsArray.get(jobIndex);
+
+        if (true) {  // Always true since we already filtered
             jobFound = true;
             cout << "\n[Array] Job: \"" << jb.getDescription() << "\"" << endl;
 
@@ -132,13 +173,11 @@ int main() {
             clock_t endMatch = clock();
             arrMatchTime = double(endMatch - startMatch) / CLOCKS_PER_SEC;
 
-            // Only sort if >1 candidate
-            if (arrCandidates.getSize() > 1)
-                arrCandidates.quickSortByScore();
-
             // Sort by score
             clock_t startSort = clock();
-            arrCandidates.quickSortByScore();
+            if (arrCandidates.getSize() > 1) {
+                arrCandidates.quickSortByScore();
+            }
             clock_t endSort = clock();
             arrSortTime = double(endSort - startSort) / CLOCKS_PER_SEC;
 
@@ -182,34 +221,16 @@ int main() {
     double listMatchTime = 0, listSortTime = 0, listSearchTime = 0;
     size_t listMemory = 0;
 
-    auto* jobNode = jobsList.getHead();
-    while (jobNode) {
+    // Process candidates only for the same matching jobs found earlier
+    for (int i = 0; i < matchingJobCount; i++) {
         listCandidates.clear();
+        // Reset timing variables for each job
+        listMatchTime = 0; listSortTime = 0;
 
-        Job jb = jobNode->data;
-        string jobText = toLowerStr(jb.getDescription());
+        int jobIndex = matchingJobIndices[i];
+        Job jb = jobsArray.get(jobIndex);  // Get job from array using index
 
-        // Match all words
-        bool matched = true;
-        stringstream ss(keyword);
-        string word;
-
-        while (ss >> word) {
-            // remove punctuation
-            word.erase(remove_if(word.begin(), word.end(), ::ispunct), word.end());
-            word = toLowerStr(trim(word));
-
-            if (word.empty()) continue;
-            if (isStopword(word)) continue;
-
-            // require every important word to be found
-            if (jobText.find(word) == string::npos) {
-                matched = false;
-                break;
-            }
-        }
-
-        if (matched) {
+        if (true) {  // Always true since we already filtered
             cout << "\n[LinkedList] Job: \"" << jb.getDescription() << "\"" << endl;
 
             clock_t startMatch = clock();
@@ -223,13 +244,11 @@ int main() {
             clock_t endMatch = clock();
             listMatchTime = double(endMatch - startMatch) / CLOCKS_PER_SEC;
 
-            // Only sort if >1 candidate
-            if (listCandidates.getSize() > 1)
-                listCandidates.quickSortByScore();
-
             // Sort
             clock_t startSort = clock();
-            listCandidates.quickSortByScore();
+            if (listCandidates.getSize() > 1) {
+                listCandidates.quickSortByScore();
+            }
             clock_t endSort = clock();
             listSortTime = double(endSort - startSort) / CLOCKS_PER_SEC;
 
@@ -283,7 +302,6 @@ int main() {
                  << " | Sort Time: " << listSortTime << "s]" << endl;
             cout << "[LinkedList] Search Time: " << listSearchTime << "s" << endl;
         }
-        jobNode = jobNode->next;
     }
 
     // =================== PERFORMANCE SUMMARY ===================

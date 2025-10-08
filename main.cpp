@@ -104,8 +104,9 @@ int main() {
     cout << "Logging results to output.txt..." << endl;
 
     // Redirect output after user input
-    freopen("output.txt", "w", stdout);
-    freopen("output.txt", "a", stderr);
+    ofstream fout("output.txt");
+    streambuf* coutbuf = cout.rdbuf(); // save old buffer
+    cout.rdbuf(fout.rdbuf());          // redirect cout to file
 
     bool jobFound = false;
 
@@ -321,14 +322,7 @@ int main() {
         cout << "No job found matching: " << keyword << endl;
     }
 
-    // Restore output to the terminal (cross-platform)
-    fclose(stdout);
-
-    #ifdef _WIN32
-        freopen("CON", "w", stdout);   // Windows console
-    #else
-        freopen("/dev/tty", "w", stdout);   // macOS / Linux terminal
-    #endif
+    cout.rdbuf(coutbuf); // restore original buffer
 
     cout << "\n=== Output successfully written to output.txt ===" << endl;
 

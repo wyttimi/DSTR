@@ -2,6 +2,9 @@
 #include <fstream>
 #include <sstream>
 #include <ctime>
+#include <string>
+#include <algorithm>
+#include <iomanip>
 #include "Job.hpp"
 #include "Resume.hpp"
 #include "CandidateMatch.hpp"
@@ -13,318 +16,291 @@
 #include "LinkedListContainerCandidate.hpp"
 #include "Utils.hpp"
 #include "JobMatcher.hpp"
-
 using namespace std;
 
-// Simple word boundary check function
-bool isWordMatch(const string& text, const string& word) {
+// ===== Helper: exact word boundary check =====
+bool isWordMatch(const string &text, const string &word) {
     if (word.empty() || text.empty()) return false;
-    
     string lowerText = toLowerStr(text);
     string lowerWord = toLowerStr(word);
-    
     size_t pos = 0;
     while ((pos = lowerText.find(lowerWord, pos)) != string::npos) {
-        // Check if character before is not alphanumeric
-        bool startOk = (pos == 0) || (!isalnum(lowerText[pos - 1]));
-        // Check if character after is not alphanumeric
-        bool endOk = (pos + lowerWord.length() >= lowerText.length()) || 
-                     (!isalnum(lowerText[pos + lowerWord.length()]));
-        
-        if (startOk && endOk) {
-            return true;
-        }
+        bool startOk = (pos == 0) || !isalnum(lowerText[pos - 1]);
+        bool endOk = (pos + lowerWord.length() >= lowerText.length()) ||
+                     !isalnum(lowerText[pos + lowerWord.length()]);
+        if (startOk && endOk) return true;
         pos++;
     }
     return false;
 }
 
-// --- Memory estimation helpers ---
-size_t estimateArrayMemoryCandidates(ArrayContainerCandidate& arr) {
-    return arr.getSize() * sizeof(CandidateMatch);
-}
-size_t estimateLinkedListMemoryCandidates(LinkedListContainerCandidate& list) {
-    return list.getSize() * (sizeof(CandidateMatch) + sizeof(void*));
+// ===== Job / Resume Relevance =====
+int relevanceScore(const string &text, const string &keyword) {
+    string lowerText = toLowerStr(text);
+    stringstream ss(keyword);
+    string w;
+    int score = 0;
+    while (ss >> w) {
+        w.erase(remove_if(w.begin(), w.end(), ::ispunct), w.end());
+        w = toLowerStr(trim(w));
+        if (w.empty() || isStopword(w)) continue;
+        if (isWordMatch(lowerText, w)) score++;
+    }
+    return score;
 }
 
+// ===== Memory Estimation =====
+size_t estimateArrayMemory(ArrayContainerCandidate &arr) {
+    return arr.getSize() * sizeof(CandidateMatch);
+}
+size_t estimateLinkedMemory(LinkedListContainerCandidate &list) {
+    return list.getSize() * (sizeof(CandidateMatch) + sizeof(void *));
+}
+
+// ===== Sort helper for selecting best job/resume =====
+void sortByScoreDesc(Job jobs[], int scores[], int n) {
+    for (int i = 0; i < n - 1; i++)
+        for (int j = 0; j < n - i - 1; j++)
+            if (scores[j] < scores[j + 1]) {
+                swap(scores[j], scores[j + 1]);
+                swap(jobs[j], jobs[j + 1]);
+            }
+}
+void sortByScoreDesc(Resume resumes[], int scores[], int n) {
+    for (int i = 0; i < n - 1; i++)
+        for (int j = 0; j < n - i - 1; j++)
+            if (scores[j] < scores[j + 1]) {
+                swap(scores[j], scores[j + 1]);
+                swap(resumes[j], resumes[j + 1]);
+            }
+}
+
+// ===== MAIN =====
 int main() {
-    // =================== DATA STRUCTURES ===================
     ArrayContainerJob jobsArray;
     ArrayContainerResume resumesArray;
     LinkedListContainerJob jobsList;
     LinkedListContainerResume resumesList;
 
-    // =================== LOAD JOB DATA ===================
+    // ==== LOAD FILES ====
     ifstream jobFile("cleaned_jobs.csv");
-    if (!jobFile.is_open()) {
-        cerr << "Error: cleaned_jobs.csv not found!" << endl;
-        return 1;
-    }
-
+    if (!jobFile.is_open()) { cerr << "Error: cleaned_jobs.csv not found!\n"; return 1; }
     string line;
     while (getline(jobFile, line)) {
-        if (line.empty() || line.find_first_not_of(" \t") == string::npos) continue;
         if (line.size() < 5) continue;
-        Job jb(line);
-        jobsArray.insert(jb);
-        jobsList.insert(jb);
+        Job j(line); jobsArray.insert(j); jobsList.insert(j);
     }
 
-    // =================== LOAD RESUME DATA ===================
     ifstream resFile("cleaned_resumes.csv");
-    if (!resFile.is_open()) {
-        cerr << "Error: cleaned_resumes.csv not found!" << endl;
-        return 1;
-    }
-
+    if (!resFile.is_open()) { cerr << "Error: cleaned_resumes.csv not found!\n"; return 1; }
     while (getline(resFile, line)) {
-        if (line.empty() || line.find_first_not_of(" \t") == string::npos) continue;
         if (line.size() < 5) continue;
-        Resume rs(line);
-        resumesArray.insert(rs);
-        resumesList.insert(rs);
+        Resume r(line); resumesArray.insert(r); resumesList.insert(r);
     }
 
-    // =================== USER INPUT ===================
-    cout << "===== Job → Candidate Matching =====" << endl;
-    cout << "Enter job titles or skills: ";
-    string keyword;
-    getline(cin, keyword);
-    keyword = toLowerStr(keyword);
+    // ==== MODE SELECTION ====
+    cout << "============================== Matching System ==============================\n";
+    int mode;
+    while (true) {
+        cout << "Select mode:\n1. Job Seeker (Find Resumes for a Job)\n2. Candidate Seeker (Find Jobs for a Resume)\nEnter choice (1/2): ";
+        if (cin >> mode && (mode == 1 || mode == 2)) {
+            cin.ignore();
+            break;
+        } else {
+            cout << "Invalid choice. Please enter 1 or 2.\n";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+    }
 
-    cout << "\nChoose which candidates to display:\n";
-    cout << "1. Top 5 matches\n";
-    cout << "2. Average 5 matches\n";
-    cout << "3. Lowest 5 matches\n";
-    cout << "Enter choice (1/2/3): ";
+    cout << (mode == 1 ? "\nEnter job title or keywords: " : "\nEnter candidate's skills or keywords: ");
+    string keyword; getline(cin, keyword); keyword = toLowerStr(keyword);
+
     int choice;
-    cin >> choice;
-    cin.ignore();
-
-    cout << "Logging results to output.txt..." << endl;
-
-    // Redirect output after user input
-    ofstream fout("output.txt");
-    streambuf* coutbuf = cout.rdbuf(); // save old buffer
-    cout.rdbuf(fout.rdbuf());          // redirect cout to file
-
-    bool jobFound = false;
-
-    // Pre-filter matching jobs (basic arrays)
-    int matchingJobIndices[10000];  // Store indices of matching jobs
-    int matchingJobCount = 0;
-
-    // ---------------- ARRAY VERSION ----------------
-    ArrayContainerCandidate arrCandidates;
-    int totalMatchesArray = 0;
-    double arrMatchTime = 0, arrSortTime = 0, arrSearchTime = 0;
-    size_t arrMemory = 0;
-
-    // Step 1: Find all matching jobs first
-    for (int j = 0; j < jobsArray.getSize(); j++) {
-        Job jb = jobsArray.get(j);
-        string jobText = toLowerStr(jb.getDescription());
-
-        // --- Match all words ---
-        bool matched = true;
-        stringstream ss(keyword);
-        string word;
-
-        while (ss >> word) {
-            // remove punctuation
-            word.erase(remove_if(word.begin(), word.end(), ::ispunct), word.end());
-            word = toLowerStr(trim(word));
-
-            if (word.empty()) continue;
-            if (isStopword(word)) continue; // skip common words like "with", "in", etc.
-
-            // require every important word to be found (exact word match)
-            if (!isWordMatch(jobText, word)) {
-                matched = false;
-                break;
-            }
-        }
-
-        if (matched) {
-            matchingJobIndices[matchingJobCount] = j;
-            matchingJobCount++;
-            jobFound = true;
+    while (true) {
+        cout << "\nChoose which results to display:\n"
+            << "1. Top 10 matches\n"
+            << "2. Average 10 matches\n"
+            << "3. Lowest 10 matches\n"
+            << "Enter choice (1/2/3): ";
+        if (cin >> choice && (choice >= 1 && choice <= 3)) {
+            cin.ignore();
+            break;
+        } else {
+            cout << "Invalid choice. Please enter 1, 2, or 3.\n";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
         }
     }
 
-    // Step 2: Process candidates only for matching jobs
-    for (int i = 0; i < matchingJobCount; i++) {
-        arrCandidates.clear();
-        // Reset timing variables for each job
-        arrMatchTime = 0; arrSortTime = 0;
 
-        int jobIndex = matchingJobIndices[i];
-        Job jb = jobsArray.get(jobIndex);
+    // ==== FIND MOST RELEVANT JOB OR RESUME ====
+    Job bestJob; Resume bestResume; int bestScore = 0;
 
-        if (true) {  // Always true since we already filtered
-            jobFound = true;
-            cout << "\n[Array] Job: \"" << jb.getDescription() << "\"" << endl;
-
-            clock_t startMatch = clock();
-            for (int r = 0; r < resumesArray.getSize(); r++) {
-                Resume res = resumesArray.get(r);
-                int score = JobMatcher::calculateScore(jb, res);
-                if (score > 0) arrCandidates.insert({res, score});
-            }
-            clock_t endMatch = clock();
-            arrMatchTime = double(endMatch - startMatch) / CLOCKS_PER_SEC;
-
-            // Sort by score
-            clock_t startSort = clock();
-            if (arrCandidates.getSize() > 1) {
-                arrCandidates.quickSortByScore();
-            }
-            clock_t endSort = clock();
-            arrSortTime = double(endSort - startSort) / CLOCKS_PER_SEC;
-
-            arrSearchTime = arrMatchTime + arrSortTime;
-            arrMemory = estimateArrayMemoryCandidates(arrCandidates);
-            totalMatchesArray = arrCandidates.getSize();
-
-            // Print candidates based on user choice
-            if (choice == 1) {
-                for (int i = 0; i < arrCandidates.getSize() && i < 5; i++) {
-                    cout << "   -> Candidate Resume: \"" 
-                         << arrCandidates.get(i).resume.getDescription() << "\"" << endl;
-                    cout << "      Score: " << arrCandidates.get(i).score << endl;
-                }
-            } else if (choice == 2) {
-                int mid = arrCandidates.getSize() / 2;
-                int start = max(0, mid - 2);
-                for (int i = start; i < arrCandidates.getSize() && i < start + 5; i++) {
-                    cout << "   -> Candidate Resume: \"" 
-                         << arrCandidates.get(i).resume.getDescription() << "\"" << endl;
-                    cout << "      Score: " << arrCandidates.get(i).score << endl;
-                }
-            } else if (choice == 3) {
-                for (int i = max(0, arrCandidates.getSize() - 5); i < arrCandidates.getSize(); i++) {
-                    cout << "   -> Candidate Resume: \"" 
-                         << arrCandidates.get(i).resume.getDescription() << "\"" << endl;
-                    cout << "      Score: " << arrCandidates.get(i).score << endl;
-                }
-            }
-
-            cout << "   [Total Matches: " << totalMatchesArray
-                 << " | Match Time: " << arrMatchTime << "s"
-                 << " | Sort Time: " << arrSortTime << "s]" << endl;
-            cout << "[Array] Search Time: " << arrSearchTime << "s" << endl;
+    if (mode == 1) {
+        for (int i = 0; i < jobsArray.getSize(); i++) {
+            int sc = relevanceScore(jobsArray.get(i).getDescription(), keyword);
+            if (sc > bestScore) { bestScore = sc; bestJob = jobsArray.get(i); }
         }
-    }
-
-    // ---------------- LINKEDLIST VERSION ----------------
-    LinkedListContainerCandidate listCandidates;
-    int totalMatchesList = 0;
-    double listMatchTime = 0, listSortTime = 0, listSearchTime = 0;
-    size_t listMemory = 0;
-
-    // Process candidates only for the same matching jobs found earlier
-    for (int i = 0; i < matchingJobCount; i++) {
-        listCandidates.clear();
-        // Reset timing variables for each job
-        listMatchTime = 0; listSortTime = 0;
-
-        int jobIndex = matchingJobIndices[i];
-        Job jb = jobsArray.get(jobIndex);  // Get job from array using index
-
-        if (true) {  // Always true since we already filtered
-            cout << "\n[LinkedList] Job: \"" << jb.getDescription() << "\"" << endl;
-
-            clock_t startMatch = clock();
-            auto* resNode = resumesList.getHead();
-            while (resNode) {
-                Resume res = resNode->data;
-                int score = JobMatcher::calculateScore(jb, res);
-                if (score > 0) listCandidates.insert({res, score});
-                resNode = resNode->next;
-            }
-            clock_t endMatch = clock();
-            listMatchTime = double(endMatch - startMatch) / CLOCKS_PER_SEC;
-
-            // Sort
-            clock_t startSort = clock();
-            if (listCandidates.getSize() > 1) {
-                listCandidates.quickSortByScore();
-            }
-            clock_t endSort = clock();
-            listSortTime = double(endSort - startSort) / CLOCKS_PER_SEC;
-
-            listSearchTime = listMatchTime + listSortTime;
-            listMemory = estimateLinkedListMemoryCandidates(listCandidates);
-            totalMatchesList = listCandidates.getSize();
-
-            // Print candidates based on user choice
-            if (choice == 1) {
-                auto* candNode = listCandidates.getHead();
-                int shown = 0;
-                while (candNode && shown < 5) {
-                    cout << "   -> Candidate Resume: \"" 
-                         << candNode->data.resume.getDescription() << "\"" << endl;
-                    cout << "      Score: " << candNode->data.score << endl;
-                    candNode = candNode->next;
-                    shown++;
-                }
-            } else if (choice == 2) {
-                int mid = totalMatchesList / 2;
-                int start = max(0, mid - 2);
-                auto* candNode = listCandidates.getHead();
-                int idx = 0, shown = 0;
-                while (candNode && shown < 5) {
-                    if (idx >= start) {
-                        cout << "   -> Candidate Resume: \"" 
-                             << candNode->data.resume.getDescription() << "\"" << endl;
-                        cout << "      Score: " << candNode->data.score << endl;
-                        shown++;
-                    }
-                    candNode = candNode->next;
-                    idx++;
-                }
-            } else if (choice == 3) {
-                int skip = max(0, totalMatchesList - 5);
-                auto* candNode = listCandidates.getHead();
-                int idx = 0;
-                while (candNode) {
-                    if (idx >= skip) {
-                        cout << "   -> Candidate Resume: \"" 
-                             << candNode->data.resume.getDescription() << "\"" << endl;
-                        cout << "      Score: " << candNode->data.score << endl;
-                    }
-                    candNode = candNode->next;
-                    idx++;
-                }
-            }
-
-            cout << "   [Total Matches: " << totalMatchesList
-                 << " | Match Time: " << listMatchTime << "s"
-                 << " | Sort Time: " << listSortTime << "s]" << endl;
-            cout << "[LinkedList] Search Time: " << listSearchTime << "s" << endl;
+        if (bestScore == 0) { cout << "\nNo job found for input.\n"; return 0; }
+        cout << "\n============================== Selected Job ==============================\n" << bestJob.getDescription() << " [Relevance: " << bestScore << "]\n";
+    } else {
+        for (int i = 0; i < resumesArray.getSize(); i++) {
+            int sc = relevanceScore(resumesArray.get(i).getDescription(), keyword);
+            if (sc > bestScore) { bestScore = sc; bestResume = resumesArray.get(i); }
         }
+        if (bestScore == 0) { cout << "\nNo resume found for input.\n"; return 0; }
+        cout << "\n============================== Selected Resume ==============================\n" << bestResume.getDescription() << " [Relevance: " << bestScore << "]\n";
     }
 
-    // =================== PERFORMANCE SUMMARY ===================
-    if (jobFound) {
-        cout << "\n===== Performance Comparison =====" << endl;
-        cout << "Structure     | Matches | Match Time | Sort Time | Search Time | Memory (bytes)" << endl;
-        cout << "--------------------------------------------------------------------------" << endl;
-        cout << "Array         | " << totalMatchesArray
-             << "      | " << arrMatchTime << "s | " << arrSortTime
-             << "s | " << arrSearchTime << "s | " << arrMemory << endl;
-        cout << "LinkedList    | " << totalMatchesList
-             << "      | " << listMatchTime << "s | " << listSortTime
-             << "s | " << listSearchTime << "s | " << listMemory << endl;
+    // ==== PERFORMANCE TABLE ====
+    struct Summary { string ds, sortAlgo, searchAlgo; double matchT, sortT, searchT; size_t mem; } results[4];
+    int resCount = 0;
+
+    // ==== PRINTERS ====
+    auto printArray = [&](ArrayContainerCandidate &c) {
+        int total = c.getSize();
+        if (total == 0) { cout << "   No matches found.\n"; return; }
+        int start = 0, end = 0;
+        if (choice == 1) { start = 0; end = min(total, 10); }
+        else if (choice == 2) { int mid = total / 2; start = max(0, mid - 5); end = min(total, start + 10); }
+        else { start = max(0, total - 10); end = total; }
+
+        for (int i = start; i < end; i++) {
+            if (mode == 1)
+                cout << "   Candidate " << (i - start + 1) << ": " << c.get(i).resume.getDescription()
+                     << " [Score: " << c.get(i).score << "]\n";
+            else
+                cout << "   Job " << (i - start + 1) << ": " << c.get(i).job.getDescription()
+                     << " [Score: " << c.get(i).score << "]\n";
+        }
+    };
+
+    auto printList = [&](LinkedListContainerCandidate &l) {
+        int total = l.getSize();
+        if (total == 0) { cout << "   No matches found.\n"; return; }
+
+        int start = 0, end = 0;
+        if (choice == 1) { start = 0; end = min(total, 10); }
+        else if (choice == 2) { int mid = total / 2; start = max(0, mid - 5); end = min(total, start + 10); }
+        else { start = max(0, total - 10); end = total; }
+
+        auto *n = l.getHead(); int i = 0;
+        while (n) {
+            if (i >= start && i < end) {
+                if (mode == 1)
+                    cout << "   Candidate " << (i - start + 1) << ": " << n->data.resume.getDescription()
+                         << " [Score: " << n->data.score << "]\n";
+                else
+                    cout << "   Job " << (i - start + 1) << ": " << n->data.job.getDescription()
+                         << " [Score: " << n->data.score << "]\n";
+            }
+            n = n->next; i++;
+        }
+    };
+
+    // ==== MAIN ALGO LOOP ====
+    for (int algo = 1; algo <= 4; algo++) {
+        string ds, sortA, searchA;
+        if (algo == 1) { ds = "Array"; sortA = "Bubble"; searchA = "Linear"; }
+        if (algo == 2) { ds = "Array"; sortA = "Merge";  searchA = "Binary"; }
+        if (algo == 3) { ds = "LinkedList"; sortA = "Bubble"; searchA = "Linear"; }
+        if (algo == 4) { ds = "LinkedList"; sortA = "Merge";  searchA = "Binary"; }
+
+        cout << "\n============================== " << algo << ". " << ds << " + " << sortA << " Sort + " << searchA << " Search ==============================\n";
+
+        double tMatch = 0, tSort = 0, tSearch = 0; size_t mem = 0;
+
+        // === ARRAY VERSION ===
+        if (ds == "Array") {
+            ArrayContainerCandidate cand;
+            clock_t s1 = clock();
+            if (mode == 1) {
+                for (int r = 0; r < resumesArray.getSize(); r++) {
+                    int sc = JobMatcher::calculateScore(bestJob, resumesArray.get(r));
+                    if (sc > 0) cand.insert({resumesArray.get(r), sc});
+                }
+            } else {
+                for (int j = 0; j < jobsArray.getSize(); j++) {
+                    int sc = JobMatcher::calculateScore(jobsArray.get(j), bestResume);
+                    if (sc > 0) cand.insert({jobsArray.get(j), sc});
+                }
+            }
+            clock_t e1 = clock(); tMatch = double(e1 - s1) / CLOCKS_PER_SEC;
+
+            // prevent crash if empty
+            if (cand.getSize() == 0) { cout << "No matching " << (mode == 1 ? "candidates" : "jobs") << " found.\n"; continue; }
+
+            clock_t s2 = clock(); 
+            if (sortA == "Bubble") cand.bubbleSortByScore(); else cand.mergeSortByScore();
+            clock_t e2 = clock(); tSort = double(e2 - s2) / CLOCKS_PER_SEC;
+
+            clock_t s3 = clock(); 
+            if (searchA == "Linear") cand.linearSearchByScore(cand.get(0).score);
+            else cand.binarySearchByScore(cand.get(0).score);
+            clock_t e3 = clock(); tSearch = double(e3 - s3) / CLOCKS_PER_SEC;
+
+            printArray(cand);
+            cout << "   → Total " << (mode == 1 ? "candidates" : "jobs") << " matched: " << cand.getSize() << "\n";
+            mem = estimateArrayMemory(cand);
+            cand.clear();
+        }
+
+        // === LINKED LIST VERSION ===
+        else {
+            LinkedListContainerCandidate cand;
+            clock_t s1 = clock();
+            if (mode == 1) {
+                auto *n = resumesList.getHead();
+                while (n) {
+                    int sc = JobMatcher::calculateScore(bestJob, n->data);
+                    if (sc > 0) cand.insert({n->data, sc});
+                    n = n->next;
+                }
+            } else {
+                auto *n = jobsList.getHead();
+                while (n) {
+                    int sc = JobMatcher::calculateScore(n->data, bestResume);
+                    if (sc > 0) cand.insert({n->data, sc});
+                    n = n->next;
+                }
+            }
+            clock_t e1 = clock(); tMatch = double(e1 - s1) / CLOCKS_PER_SEC;
+
+            if (cand.getSize() == 0) { cout << "No matching " << (mode == 1 ? "candidates" : "jobs") << " found.\n"; continue; }
+
+            clock_t s2 = clock(); 
+            if (sortA == "Bubble") cand.bubbleSortByScore(); else cand.mergeSortByScore();
+            clock_t e2 = clock(); tSort = double(e2 - s2) / CLOCKS_PER_SEC;
+
+            clock_t s3 = clock(); 
+            if (searchA == "Linear") cand.linearSearchByScore(cand.getHead()->data.score);
+            else cand.binarySearchByScore(cand.getHead()->data.score);
+            clock_t e3 = clock(); tSearch = double(e3 - s3) / CLOCKS_PER_SEC;
+
+            printList(cand);
+            cout << "   → Total " << (mode == 1 ? "candidates" : "jobs") << " matched: " << cand.getSize() << "\n";
+            mem = estimateLinkedMemory(cand);
+            cand.clear();
+        }
+
+        results[resCount++] = {ds, sortA, searchA, tMatch, tSort, tSearch, mem};
     }
 
-    if (!jobFound) {
-        cout << "No job found matching: " << keyword << endl;
+    // ==== SUMMARY ====
+    cout << "\n================================== Final Performance Summary ===================================\n";
+    cout << left << setw(15) << "Data Structure" << setw(12) << "Sort" << setw(12)
+         << "Search" << setw(12) << "Match(s)" << setw(12) << "Sort(s)" << setw(12)
+         << "Search(s)" << "Memory(bytes)\n";
+    cout << string(80, '-') << endl;
+
+    for (int i = 0; i < resCount; i++) {
+        cout << left << setw(15) << results[i].ds << setw(12) << results[i].sortAlgo
+             << setw(12) << results[i].searchAlgo << setw(12) << fixed << setprecision(6)
+             << results[i].matchT << setw(12) << results[i].sortT
+             << setw(12) << results[i].searchT << results[i].mem << endl;
     }
 
-    cout.rdbuf(coutbuf); // restore original buffer
-
-    cout << "\n=== Output successfully written to output.txt ===" << endl;
-
+    cout << "\n=============================== Execution completed successfully ===============================\n";
     return 0;
 }

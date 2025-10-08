@@ -1,9 +1,8 @@
 #ifndef LINKEDLISTCONTAINERCANDIDATE_HPP
 #define LINKEDLISTCONTAINERCANDIDATE_HPP
 
-#include <iostream>
-#include <stdexcept>
 #include "CandidateMatch.hpp"
+#include <cstddef>
 using namespace std;
 
 class LinkedListContainerCandidate {
@@ -11,88 +10,87 @@ private:
     struct Node {
         CandidateMatch data;
         Node* next;
-        Node(CandidateMatch d) : data(d), next(nullptr) {}
+        Node(const CandidateMatch& d) : data(d), next(nullptr) {}
     };
     Node* head;
     int size;
 
-    Node* getTail(Node* cur) {
-        while (cur && cur->next)
-            cur = cur->next;
+    // --- helpers ---
+    Node* getTail(Node* cur) const {
+        while (cur && cur->next) cur = cur->next;
         return cur;
     }
 
-    Node* partition(Node* low, Node* high, Node** newLow, Node** newHigh) {
-        Node* pivot = high;
-        Node* prev = nullptr;
-        Node* curr = low;
-        Node* tail = pivot;
-
-        while (curr != pivot) {
-            if (curr->data.score > pivot->data.score) { // descending
-                if (*newLow == nullptr)
-                    *newLow = curr;
-                prev = curr;
-                curr = curr->next;
-            } else {
-                if (prev)
-                    prev->next = curr->next;
-                Node* tmp = curr->next;
-                curr->next = nullptr;
-                tail->next = curr;
-                tail = curr;
-                curr = tmp;
-            }
+    // Split list into halves (slow/fast pointer)
+    void split(Node* source, Node** frontRef, Node** backRef) {
+        Node* slow = source;
+        Node* fast = source->next;
+        while (fast) {
+            fast = fast->next;
+            if (fast) { slow = slow->next; fast = fast->next; }
         }
-
-        if (*newLow == nullptr)
-            *newLow = pivot;
-
-        *newHigh = tail;
-        return pivot;
+        *frontRef = source;
+        *backRef  = slow->next;
+        slow->next = nullptr;
     }
 
-    Node* quickSortHelper(Node* low, Node* high) {
-        if (!low || low == high)
-            return low;
-
-        Node* newLow = nullptr;
-        Node* newHigh = nullptr;
-        Node* pivot = partition(low, high, &newLow, &newHigh);
-
-        if (newLow != pivot) {
-            Node* temp = newLow;
-            while (temp->next != pivot)
-                temp = temp->next;
-            temp->next = nullptr;
-
-            newLow = quickSortHelper(newLow, temp);
-
-            Node* tail = newLow;
-            while (tail->next)
-                tail = tail->next;
-            tail->next = pivot;
+    // Merge two sorted lists (descending by score)
+    Node* sortedMerge(Node* a, Node* b) {
+        if (!a) return b;
+        if (!b) return a;
+        Node* result = nullptr;
+        if (a->data.score >= b->data.score) {
+            result = a;
+            result->next = sortedMerge(a->next, b);
+        } else {
+            result = b;
+            result->next = sortedMerge(a, b->next);
         }
+        return result;
+    }
 
-        pivot->next = quickSortHelper(pivot->next, newHigh);
-        return newLow;
+    void mergeSort(Node** headRef) {
+        Node* h = *headRef;
+        if (!h || !h->next) return;
+        Node* a; Node* b;
+        split(h, &a, &b);
+        mergeSort(&a);
+        mergeSort(&b);
+        *headRef = sortedMerge(a, b);
+    }
+
+    // Middle between start (inclusive) and end (exclusive)
+    Node* middle(Node* start, Node* end) const {
+        if (!start) return nullptr;
+        Node* slow = start;
+        Node* fast = start->next;
+        while (fast != end) {
+            fast = fast ? fast->next : fast;
+            if (fast != end) {
+                slow = slow->next;
+                fast = fast ? fast->next : fast;
+            }
+        }
+        return slow;
     }
 
 public:
-    LinkedListContainerCandidate() {
-        head = nullptr;
-        size = 0;
+    LinkedListContainerCandidate() : head(nullptr), size(0) {}
+    ~LinkedListContainerCandidate() { clear(); }
+
+    void clear() {
+        Node* cur = head;
+        while (cur) { Node* t = cur; cur = cur->next; delete t; }
+        head = nullptr; size = 0;
     }
 
-    void insert(CandidateMatch item) {
-        Node* newNode = new Node(item);
-        if (!head)
-            head = newNode;
+    void insert(const CandidateMatch& x) {
+        Node* n = new Node(x);
+        if (!head) head = n;
         else {
-            Node* temp = head;
-            while (temp->next)
-                temp = temp->next;
-            temp->next = newNode;
+            Node* t = head;
+            while (t->next) t = t->next;
+            t->next = n;
         }
         size++;
     }
@@ -100,25 +98,67 @@ public:
     int getSize() const { return size; }
     Node* getHead() { return head; }
 
-    void quickSortByScore() {
-        if (size <= 1) return;
-        Node* tail = getTail(head);
-        head = quickSortHelper(head, tail);
+    // --- Bubble Sort (descending) in-place by data swap ---
+    void bubbleSortByScore() {
+        if (!head || !head->next) return;
+        bool swapped;
+        do {
+            swapped = false;
+            Node* cur = head;
+            while (cur->next) {
+                if (cur->data.score < cur->next->data.score) {
+                    CandidateMatch tmp = cur->data;
+                    cur->data = cur->next->data;
+                    cur->next->data = tmp;
+                    swapped = true;
+                }
+                cur = cur->next;
+            }
+        } while (swapped);
     }
 
-    void clear() {
-        Node* current = head;
-        while (current) {
-            Node* tmp = current;
-            current = current->next;
-            delete tmp;
+    // --- Merge Sort (descending) ---
+    void mergeSortByScore() { mergeSort(&head); }
+
+    // --- Linear Search by score ---
+    int linearSearchByScore(int target) const {
+        Node* cur = head; int idx = 0;
+        while (cur) {
+            if (cur->data.score == target) return idx;
+            cur = cur->next; idx++;
         }
-        head = nullptr;
-        size = 0;
+        return -1;
     }
 
-    ~LinkedListContainerCandidate() {
-        clear();
+    // --- Binary Search on Linked List (O(n log n)) ---
+    // Requires list sorted DESC. Uses slow/fast to find middle repeatedly.
+    int binarySearchByScore(int target) const {
+        Node* start = head;
+        Node* end = nullptr;
+        int baseIdx = 0;  // track index window start
+        while (start != end) {
+            Node* mid = middle(start, end);
+
+            // compute mid index from start
+            int midOffset = 0;
+            Node* t = start;
+            while (t && t != mid) { t = t->next; midOffset++; }
+            int midIdx = baseIdx + midOffset;
+
+            if (!mid) return -1;
+            if (mid->data.score == target) return midIdx;
+
+            if (mid->data.score > target) {
+                // search right half: start = mid->next
+                start = mid->next;
+                baseIdx = midIdx + 1;
+            } else {
+                // search left half: end = mid
+                end = mid;
+                // baseIdx unchanged
+            }
+        }
+        return -1;
     }
 };
 

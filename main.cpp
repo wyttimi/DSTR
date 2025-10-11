@@ -57,7 +57,7 @@ size_t estimateLinkedMemory(LinkedListContainerCandidate &list) {
     return list.getSize() * (sizeof(CandidateMatch) + sizeof(void *));
 }
 
-// ===== Sort helper for selecting best job/resume =====
+// ===== Sort helper =====
 void sortByScoreDesc(Job jobs[], int scores[], int n) {
     for (int i = 0; i < n - 1; i++)
         for (int j = 0; j < n - i - 1; j++)
@@ -77,81 +77,86 @@ void sortByScoreDesc(Resume resumes[], int scores[], int n) {
 
 // ===== MAIN =====
 int main() {
-    ArrayContainerJob jobsArray;
-    ArrayContainerResume resumesArray;
-    LinkedListContainerJob jobsList;
-    LinkedListContainerResume resumesList;
+    while (true) {  // Loop entire program until user chooses Quit
+        ArrayContainerJob jobsArray;
+        ArrayContainerResume resumesArray;
+        LinkedListContainerJob jobsList;
+        LinkedListContainerResume resumesList;
 
-    // ==== LOAD FILES ====
-    ifstream jobFile("cleaned_jobs.csv");
-    if (!jobFile.is_open()) { cerr << "Error: cleaned_jobs.csv not found!\n"; return 1; }
-    string line;
-    while (getline(jobFile, line)) {
-        if (line.size() < 5) continue;
-        Job j(line); jobsArray.insert(j); jobsList.insert(j);
-    }
+        // ==== LOAD FILES ====
+        ifstream jobFile("cleaned_jobs.csv");
+        if (!jobFile.is_open()) { cerr << "Error: cleaned_jobs.csv not found!\n"; return 1; }
+        string line;
+        while (getline(jobFile, line)) {
+            if (line.size() < 5) continue;
+            Job j(line); jobsArray.insert(j); jobsList.insert(j);
+        }
 
-    ifstream resFile("cleaned_resumes.csv");
-    if (!resFile.is_open()) { cerr << "Error: cleaned_resumes.csv not found!\n"; return 1; }
-    while (getline(resFile, line)) {
-        if (line.size() < 5) continue;
-        Resume r(line); resumesArray.insert(r); resumesList.insert(r);
-    }
+        ifstream resFile("cleaned_resumes.csv");
+        if (!resFile.is_open()) { cerr << "Error: cleaned_resumes.csv not found!\n"; return 1; }
+        while (getline(resFile, line)) {
+            if (line.size() < 5) continue;
+            Resume r(line); resumesArray.insert(r); resumesList.insert(r);
+        }
 
-    // ==== MODE SELECTION ====
-    cout << "============================== Matching System ==============================\n";
-    int mode;
-    while (true) {
-        cout << "Select mode:\n1. Job Seeker (Find Resumes for a Job)\n2. Candidate Seeker (Find Jobs for a Resume)\nEnter choice (1/2): ";
-        if (cin >> mode && (mode == 1 || mode == 2)) {
-            cin.ignore();
-            break;
+        // ==== MODE SELECTION ====
+        cout << "============================== Matching System ==============================\n";
+        int mode;
+        while (true) {
+            cout << "Select mode:\n1. Job Seeker (Find Resumes for a Job)\n2. Candidate Seeker (Find Jobs for a Resume)\n3. Quit\nEnter choice (1/2/3): ";
+            if (cin >> mode && (mode == 1 || mode == 2 || mode == 3)) {
+                cin.ignore();
+                break;
+            } else {
+                cout << "Invalid choice. Please enter 1, 2, or 3.\n";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            }
+        }
+
+        if (mode == 3) {
+            cout << "\nExit Matching System.\n";
+            break;  // exit whole program
+        }
+
+        cout << (mode == 1 ? "\nEnter job title or keywords: " : "\nEnter candidate's skills or keywords: ");
+        string keyword; getline(cin, keyword); keyword = toLowerStr(keyword);
+
+        int choice;
+        while (true) {
+            cout << "\nChoose which results to display:\n"
+                 << "1. Top 10 matches\n"
+                 << "2. Average 10 matches\n"
+                 << "3. Lowest 10 matches\n"
+                 << "Enter choice (1/2/3): ";
+            if (cin >> choice && (choice >= 1 && choice <= 3)) {
+                cin.ignore();
+                break;
+            } else {
+                cout << "Invalid choice. Please enter 1, 2, or 3.\n";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            }
+        }
+
+        // ==== FIND MOST RELEVANT JOB OR RESUME ====
+        Job bestJob; Resume bestResume; int bestScore = 0;
+
+        if (mode == 1) {
+            for (int i = 0; i < jobsArray.getSize(); i++) {
+                int sc = relevanceScore(jobsArray.get(i).getDescription(), keyword);
+                if (sc > bestScore) { bestScore = sc; bestJob = jobsArray.get(i); }
+            }
+            if (bestScore == 0) { cout << "\nNo job found for input.\n"; continue; }
+            cout << "\n============================== Selected Job ==============================\n" << bestJob.getDescription() << " [Relevance: " << bestScore << "]\n";
         } else {
-            cout << "Invalid choice. Please enter 1 or 2.\n";
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            for (int i = 0; i < resumesArray.getSize(); i++) {
+                int sc = relevanceScore(resumesArray.get(i).getDescription(), keyword);
+                if (sc > bestScore) { bestScore = sc; bestResume = resumesArray.get(i); }
+            }
+            if (bestScore == 0) { cout << "\nNo resume found for input.\n"; continue; }
+            cout << "\n============================== Selected Resume ==============================\n" << bestResume.getDescription() << " [Relevance: " << bestScore << "]\n";
         }
-    }
-
-    cout << (mode == 1 ? "\nEnter job title or keywords: " : "\nEnter candidate's skills or keywords: ");
-    string keyword; getline(cin, keyword); keyword = toLowerStr(keyword);
-
-    int choice;
-    while (true) {
-        cout << "\nChoose which results to display:\n"
-            << "1. Top 10 matches\n"
-            << "2. Average 10 matches\n"
-            << "3. Lowest 10 matches\n"
-            << "Enter choice (1/2/3): ";
-        if (cin >> choice && (choice >= 1 && choice <= 3)) {
-            cin.ignore();
-            break;
-        } else {
-            cout << "Invalid choice. Please enter 1, 2, or 3.\n";
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
-        }
-    }
-
-
-    // ==== FIND MOST RELEVANT JOB OR RESUME ====
-    Job bestJob; Resume bestResume; int bestScore = 0;
-
-    if (mode == 1) {
-        for (int i = 0; i < jobsArray.getSize(); i++) {
-            int sc = relevanceScore(jobsArray.get(i).getDescription(), keyword);
-            if (sc > bestScore) { bestScore = sc; bestJob = jobsArray.get(i); }
-        }
-        if (bestScore == 0) { cout << "\nNo job found for input.\n"; return 0; }
-        cout << "\n============================== Selected Job ==============================\n" << bestJob.getDescription() << " [Relevance: " << bestScore << "]\n";
-    } else {
-        for (int i = 0; i < resumesArray.getSize(); i++) {
-            int sc = relevanceScore(resumesArray.get(i).getDescription(), keyword);
-            if (sc > bestScore) { bestScore = sc; bestResume = resumesArray.get(i); }
-        }
-        if (bestScore == 0) { cout << "\nNo resume found for input.\n"; return 0; }
-        cout << "\n============================== Selected Resume ==============================\n" << bestResume.getDescription() << " [Relevance: " << bestScore << "]\n";
-    }
 
     // ==== PERFORMANCE TABLE ====
     struct Summary { string ds, sortAlgo, searchAlgo; double matchT, sortT, searchT; size_t mem; } results[4];
@@ -302,5 +307,8 @@ int main() {
     }
 
     cout << "\n=============================== Execution completed successfully ===============================\n";
+    cout << "\nReturning to main menu...\n\n";
+    }
+    
     return 0;
 }

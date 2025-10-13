@@ -103,7 +103,7 @@ int main() {
         cout << "============================== Matching System ==============================\n";
         int mode;
         while (true) {
-            cout << "Select mode:\n1. Job Seeker (Find Resumes for a Job)\n2. Candidate Seeker (Find Jobs for a Resume)\n3. Quit\nEnter choice (1/2/3): ";
+            cout << "Select mode:\n1. Candidate Seeker (Find Resumes for a Job)\n2. Job Seeker (Find Jobs for a Resume)\n3. Quit\nEnter choice (1/2/3): ";
             if (cin >> mode && (mode == 1 || mode == 2 || mode == 3)) {
                 cin.ignore();
                 break;
@@ -140,22 +140,112 @@ int main() {
         }
 
         // ==== FIND MOST RELEVANT JOB OR RESUME ====
-        Job bestJob; Resume bestResume; int bestScore = 0;
+        Job bestJob;
+        Resume bestResume;
 
         if (mode == 1) {
+            struct JobMatch {
+                Job job;
+                double precision;
+            };
+
+            const int MAX_MATCHES = 1000;
+            JobMatch matches[MAX_MATCHES];
+            int matchCount = 0;
+
             for (int i = 0; i < jobsArray.getSize(); i++) {
-                int sc = relevanceScore(jobsArray.get(i).getDescription(), keyword);
-                if (sc > bestScore) { bestScore = sc; bestJob = jobsArray.get(i); }
+                string desc = jobsArray.get(i).getDescription();
+                int relevance = relevanceScore(desc, keyword);
+
+                // Count total number of words (skills/keywords) in job description
+                int totalWords = 0;
+                stringstream ss(desc);
+                string word;
+                while (ss >> word) totalWords++;
+
+                if (totalWords == 0) continue;
+                double precision = (double)relevance / totalWords;
+
+                // Keep jobs where ≥30% of content is relevant
+                if (precision >= 0.3 && matchCount < MAX_MATCHES) {
+                    matches[matchCount].job = jobsArray.get(i);
+                    matches[matchCount].precision = precision;
+                    matchCount++;
+                }
             }
-            if (bestScore == 0) { cout << "\nNo job found for input.\n"; continue; }
-            cout << "\n============================== Selected Job ==============================\n" << bestJob.getDescription() << " [Relevance: " << bestScore << "]\n";
-        } else {
+
+            if (matchCount == 0) {
+                cout << "\nNo job found for input.\n";
+                continue;
+            }
+
+            // Sort by precision (descending)
+            for (int i = 0; i < matchCount - 1; i++) {
+                for (int j = 0; j < matchCount - i - 1; j++) {
+                    if (matches[j].precision < matches[j + 1].precision) {
+                        JobMatch temp = matches[j];
+                        matches[j] = matches[j + 1];
+                        matches[j + 1] = temp;
+                    }
+                }
+            }
+
+            // Show only the Top 1 most relevant job
+            cout << "\n============================== Selected Job ==============================\n";
+            cout << matches[0].job.getDescription()
+                << " [Precision: " << fixed << setprecision(2) << matches[0].precision << "]\n";
+
+            bestJob = matches[0].job;
+        } 
+        else {
+            struct ResumeMatch {
+                Resume resume;
+                double precision;
+            };
+
+            const int MAX_MATCHES = 1000;
+            ResumeMatch matches[MAX_MATCHES];
+            int matchCount = 0;
+
             for (int i = 0; i < resumesArray.getSize(); i++) {
-                int sc = relevanceScore(resumesArray.get(i).getDescription(), keyword);
-                if (sc > bestScore) { bestScore = sc; bestResume = resumesArray.get(i); }
+                string desc = resumesArray.get(i).getDescription();
+                int relevance = relevanceScore(desc, keyword);
+
+                int totalSkills = 0;
+                stringstream ss(desc);
+                string skill;
+                while (ss >> skill) totalSkills++;
+
+                if (totalSkills == 0) continue;
+                double precision = (double)relevance / totalSkills;
+
+                if (precision >= 0.3 && matchCount < MAX_MATCHES) {
+                    matches[matchCount].resume = resumesArray.get(i);
+                    matches[matchCount].precision = precision;
+                    matchCount++;
+                }
             }
-            if (bestScore == 0) { cout << "\nNo resume found for input.\n"; continue; }
-            cout << "\n============================== Selected Resume ==============================\n" << bestResume.getDescription() << " [Relevance: " << bestScore << "]\n";
+
+            if (matchCount == 0) {
+                cout << "\nNo resume found for input.\n";
+                continue;
+            }
+
+            for (int i = 0; i < matchCount - 1; i++) {
+                for (int j = 0; j < matchCount - i - 1; j++) {
+                    if (matches[j].precision < matches[j + 1].precision) {
+                        ResumeMatch temp = matches[j];
+                        matches[j] = matches[j + 1];
+                        matches[j + 1] = temp;
+                    }
+                }
+            }
+
+            cout << "\n============================== Selected Resume ==============================\n";
+            cout << matches[0].resume.getDescription()
+                << " [Precision: " << fixed << setprecision(2) << matches[0].precision << "]\n";
+
+            bestResume = matches[0].resume;
         }
 
     // ==== PERFORMANCE TABLE ====

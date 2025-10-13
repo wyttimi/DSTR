@@ -6,7 +6,7 @@
 #include "CandidateMatch.hpp"
 using namespace std;
 
-class ArrayContainerCandidate {
+struct ArrayContainerCandidate {
 private:
     CandidateMatch* arr;
     int size;
@@ -37,6 +37,7 @@ private:
         while (j < n2) arr[k++] = R[j++];
         delete[] L; delete[] R;
     }
+
     void mergeSort(int l, int r) {
         if (l >= r) return;
         int m = l + (r - l) / 2;
@@ -77,7 +78,7 @@ public:
             bool swapped = false;
             for (int j = 0; j < size - i - 1; j++) {
                 if (arr[j].score < arr[j + 1].score) {
-                    CandidateMatch t = arr[j]; arr[j] = arr[j+1]; arr[j+1] = t;
+                    CandidateMatch t = arr[j]; arr[j] = arr[j + 1]; arr[j + 1] = t;
                     swapped = true;
                 }
             }
@@ -90,7 +91,7 @@ public:
         if (size > 1) mergeSort(0, size - 1);
     }
 
-    // --- Linear search: return index of first candidate with score == target (or -1) ---
+    // --- Linear search ---
     int linearSearchByScore(int target) const {
         for (int i = 0; i < size; i++) if (arr[i].score == target) return i;
         return -1;
@@ -102,7 +103,6 @@ public:
         while (lo <= hi) {
             int mid = lo + (hi - lo) / 2;
             if (arr[mid].score == target) return mid;
-            // descending order:
             if (arr[mid].score < target) hi = mid - 1;
             else                         lo = mid + 1;
         }

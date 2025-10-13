@@ -5,13 +5,14 @@
 #include <cstddef>
 using namespace std;
 
-class LinkedListContainerCandidate {
+struct LinkedListContainerCandidate {
 private:
     struct Node {
         CandidateMatch data;
         Node* next;
         Node(const CandidateMatch& d) : data(d), next(nullptr) {}
     };
+
     Node* head;
     int size;
 
@@ -21,7 +22,7 @@ private:
         return cur;
     }
 
-    // Split list into halves (slow/fast pointer)
+    // Split list into halves
     void split(Node* source, Node** frontRef, Node** backRef) {
         Node* slow = source;
         Node* fast = source->next;
@@ -59,7 +60,6 @@ private:
         *headRef = sortedMerge(a, b);
     }
 
-    // Middle between start (inclusive) and end (exclusive)
     Node* middle(Node* start, Node* end) const {
         if (!start) return nullptr;
         Node* slow = start;
@@ -98,7 +98,7 @@ public:
     int getSize() const { return size; }
     Node* getHead() { return head; }
 
-    // --- Bubble Sort (descending) in-place by data swap ---
+    // --- Bubble Sort (descending) ---
     void bubbleSortByScore() {
         if (!head || !head->next) return;
         bool swapped;
@@ -117,10 +117,10 @@ public:
         } while (swapped);
     }
 
-    // --- Merge Sort (descending) ---
+    // --- Merge Sort ---
     void mergeSortByScore() { mergeSort(&head); }
 
-    // --- Linear Search by score ---
+    // --- Linear Search ---
     int linearSearchByScore(int target) const {
         Node* cur = head; int idx = 0;
         while (cur) {
@@ -130,16 +130,13 @@ public:
         return -1;
     }
 
-    // --- Binary Search on Linked List (O(n log n)) ---
-    // Requires list sorted DESC. Uses slow/fast to find middle repeatedly.
+    // --- Binary Search (O(n log n)) ---
     int binarySearchByScore(int target) const {
         Node* start = head;
         Node* end = nullptr;
-        int baseIdx = 0;  // track index window start
+        int baseIdx = 0;
         while (start != end) {
             Node* mid = middle(start, end);
-
-            // compute mid index from start
             int midOffset = 0;
             Node* t = start;
             while (t && t != mid) { t = t->next; midOffset++; }
@@ -149,13 +146,10 @@ public:
             if (mid->data.score == target) return midIdx;
 
             if (mid->data.score > target) {
-                // search right half: start = mid->next
                 start = mid->next;
                 baseIdx = midIdx + 1;
             } else {
-                // search left half: end = mid
                 end = mid;
-                // baseIdx unchanged
             }
         }
         return -1;

@@ -7,13 +7,14 @@
 #include "Utils.hpp"
 using namespace std;
 
-class LinkedListContainerResume {
+struct LinkedListContainerResume {
 private:
     struct Node {
         Resume data;
         Node* next;
         Node(Resume d) : data(d), next(nullptr) {}
     };
+
     Node* head;
     int size;
 

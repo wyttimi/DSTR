@@ -4,8 +4,7 @@
 #include <string>
 using namespace std;
 
-class Resume {
-public:
+struct Resume {
     string description;
 
     Resume() {}

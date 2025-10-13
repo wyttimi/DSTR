@@ -7,13 +7,14 @@
 #include "Utils.hpp"
 using namespace std;
 
-class LinkedListContainerJob {
+struct LinkedListContainerJob {
 private:
     struct Node {
         Job data;
-        Node* next;
         Node(Job d) : data(d), next(nullptr) {}
+        Node* next;
     };
+
     Node* head;
     int size;
 

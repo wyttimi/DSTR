@@ -7,7 +7,7 @@
 #include "Utils.hpp"
 using namespace std;
 
-class ArrayContainerResume {
+struct ArrayContainerResume {
 private:
     Resume* arr;
     int size;

@@ -4,16 +4,14 @@
 #include <string>
 using namespace std;
 
-class Job {
-public:
+struct Job {
     string description;
 
-    Job() {}
+    Job() {} // default constructor
     Job(string d) {
         description = d;
     }
 
     string getDescription() const { return description; }
 };
-
 #endif

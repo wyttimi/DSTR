@@ -7,7 +7,7 @@
 #include "Utils.hpp"
 using namespace std;
 
-class ArrayContainerJob {
+struct ArrayContainerJob {
 private:
     Job* arr;
     int size;

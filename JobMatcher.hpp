@@ -8,8 +8,7 @@
 #include <set>
 #include <algorithm>
 
-class JobMatcher {
-public:
+struct JobMatcher {
     static int calculateScore(Job job, Resume resume) {
         set<string> jobWords = tokenize(job.getDescription());
         set<string> resumeWords = tokenize(resume.getDescription());

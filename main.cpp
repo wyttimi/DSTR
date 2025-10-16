@@ -110,7 +110,7 @@ int main() {
             } else {
                 cout << "Invalid choice. Please enter 1, 2, or 3.\n";
                 cin.clear();
-                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                cin.ignore(1000, '\n');
             }
         }
 
@@ -135,7 +135,7 @@ int main() {
             } else {
                 cout << "Invalid choice. Please enter 1, 2, or 3.\n";
                 cin.clear();
-                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                cin.ignore(1000, '\n');
             }
         }
 
